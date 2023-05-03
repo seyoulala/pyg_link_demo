@@ -81,9 +81,10 @@ class RGAT_LINK(RGATBase):
         # [batch_ent,k,d_q]
         key = torch.matmul(sub_emb,self.w1)
         # [batch_ent,k,d_q]
-        query = torch.matmul(rel_emb,self.w2).unsqueeze(dim=1)
+        query = torch.matmul(rel_emb,self.w2)
         # [batch_ent,k]
         attn = torch.softmax((key*query).sum(dim=-1)/torch.sqrt(torch.tensor(self.p.d_q)),dim=1)
+        # [batch_ent,k,d_]
         embe_concat = torch.concat([sub_emb,rel_emb],dim=-1)
         # [batch_ent,k,d_q]
         embe_concat = torch.matmul(embe_concat,self.w3)*(attn.view(-1,self.p.k_kernel,1))
