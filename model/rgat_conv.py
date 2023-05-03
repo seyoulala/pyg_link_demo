@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+# encoding: utf-8
+'''
+@author: Eason
+@software: Pycharm
+@file: rgat_conv.py
+@time: 2023/4/27 21:16
+@desc:
+'''
+import torch
+import torch as th
+import torch_geometric
+import torch.nn as nn
+import torch.nn.functional as F
+from torch_geometric.nn import MessagePassing
+from torch_geometric.nn.inits import glorot, zeros
+from torch_geometric.utils import  remove_self_loops,add_self_loops,softmax
+from torch_geometric.typing import Tensor,Adj
+
+class RGATConv(MessagePassing):
+    def __init__(self, in_channel, out_channel, num_rel, k,concat=True,act=lambda x: x,dropout= 0.1,bias=True,
+                 negative_slope=0.2, params=None,**kwargs):
+        """
+        """
+        kwargs.setdefault('aggr', 'add')
+        super(RGATConv, self).__init__(**kwargs)
+
+        self.in_channel = in_channel
+        self.out_channel = out_channel
+        self.num_rel= num_rel
+        self.k = k
+        self.concat = concat
+        self.negative_slope = negative_slope
+        self.dropout = dropout
+        self.p = params
+        self.act = act
+
+
+        # k entity weight aspect weight
+        self.ent_wk = nn.Linear(self.in_channel,self.out_channel,bias=False)
+        # k rel weight aspect weight
+        self.rel_wk = nn.Linear(self.in_channel,self.out_channel,bias=False)
+        #
+        self.attn_w = nn.Parameter(th.Tensor(1,self.k,(self.out_channel//self.k)*3))
+
+        if bias:
+            self.bias = nn.Parameter(th.Tensor(1,self.out_channel))
+        else:
+            self.register_parameter('bias',None)
+
+        self.drop = nn.Dropout(self.dropout)
+        self.bn = nn.BatchNorm1d(self.out_channel)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        self.lin.reset_parameters()
+        glorot(self.ent_wk)
+        glorot(self.rel_wk)
+        glorot(self.attn_w)
+        glorot(self.w1)
+        glorot(self.w2)
+        glorot(self.w3)
+        zeros(self.bias)
+
+    def forward(self,x,edge_index,edge_type,rel_emb=None):
+        # [num_ent,self.out_channel]
+        x = self.ent_wk(x)
+        r = th.index_select(rel_emb,0,edge_type)
+        # [N_edge,self.out_channel]
+        r = self.rel_wk(r)
+        #
+        output = self.propagate(edge_index,x=x,edge_type=edge_type,rel_emb=r)
+        output = self.bn(output)
+        return self.act(output),r
+
+    def message(self,edge_index_i,x_i,x_j,edge_type,rel_emb):
+        # [N_edge,k,out_channel//k]
+        x_i = x_i.view(-1,self.k,self.out_channel//self.k)
+        x_j = x_j.view(-1,self.k,self.out_channel//self.k)
+        r = th.index_select(rel_emb,0,edge_type)
+        r = r.view(-1,self.k,self.out_channel//self.k)
+        #  [N_edge,k]
+        alpha = (th.concat([x_j,r,x_i],dim=-1)*self.attn_w).sum(dim=-1)
+        # [N_edge,k]
+        alpha = softmax(alpha,index=edge_index_i)
+        # [N_edge,k,out_channel//k]
+        alpha = F.dropout(alpha,p=self.dropout,training=True)
+        out = (x_j*r)*(alpha.view(-1,self.k,1))
+        return out
+
+    def update(self, aggr_out: Tensor) -> Tensor:
+        return aggr_out.view(-1,self.k*self.out_channel//self.k)
+        # return aggr_out
+
+    def __repr__(self):
+        return '{}({}, {}, heads={})'.format(self.__class__.__name__,
+                                             self.in_channels,
+                                             self.out_channels, self.k)
+
+
+
+
+
+
+
+
+
+
+
+
