@@ -14,8 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
-from torch_geometric.nn.conv import RGATConv
-from torch_geometric.utils import  remove_self_loops,add_self_loops,softmax
+from torch_geometric.utils import  softmax
 from torch_geometric.typing import Tensor,Adj
 
 class RGATConv(MessagePassing):
@@ -41,12 +40,8 @@ class RGATConv(MessagePassing):
         self.rel_wk = nn.Linear(self.in_channel,self.out_channel,bias=False)
         #
         self.attn_w = nn.Parameter(th.Tensor(1,self.k,(self.out_channel//self.k)*3))
-
-        self.w1 = nn.Parameter(th.Tensor(self.out_channel//self.k,self.p.dim))
-        self.w2 = nn.Parameter(th.Tensor(self.out_channel,self.p.dim))
-        self.w3 = nn.Parameter(th.Tensor(self.out_channel+self.out_channel//self.k,self.p.dim))
         if bias:
-            self.bias = nn.Parameter(th.Tensor(1,(self.out_channel//k)*self.k))
+            self.bias = nn.Parameter(th.Tensor((self.out_channel//k)*self.k))
         else:
             self.register_parameter('bias',None)
 
@@ -56,24 +51,22 @@ class RGATConv(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.lin.reset_parameters()
         glorot(self.ent_wk)
         glorot(self.rel_wk)
         glorot(self.attn_w)
-        glorot(self.w1)
-        glorot(self.w2)
-        glorot(self.w3)
         zeros(self.bias)
 
     def forward(self,x,edge_index,edge_type,rel_emb=None):
         # [num_ent,self.out_channel]
         x = self.ent_wk(x)
-        r = th.index_select(rel_emb,0,edge_type)
+        # r = th.index_select(rel_emb,0,edge_type)
         # [N_edge,self.out_channel]
-        r = self.rel_wk(r)
+        r = self.rel_wk(rel_emb)
         #
         output = self.propagate(edge_index,x=x,edge_type=edge_type,rel_emb=r)
-        return output,r
+        output = self.drop(output)
+        output = self.bn(output)
+        return torch.tanh(output),r
 
     def message(self,edge_index_i,x_i,x_j,edge_type,rel_emb):
         # [N_edge,k,out_channel//k]
@@ -83,16 +76,16 @@ class RGATConv(MessagePassing):
         r = r.view(-1,self.k,self.out_channel//self.k)
         #  [N_edge,k]
         alpha = (th.concat([x_j,r,x_i],dim=-1)*self.attn_w).sum(dim=-1)
+        alpha = F.leaky_relu(alpha,self.negative_slope)
         # [N_edge,k]
         alpha = softmax(alpha,index=edge_index_i)
         # [N_edge,k,out_channel//k]
-        alpha = F.dropout(alpha,p=self.dropout,training=True)
+        # alpha = F.dropout(alpha,p=self.dropout,training=True)
         out = (x_j*r)*alpha.view(-1,self.k,1)
-
-        return out
+        return out.view(-1,self.k*self.out_channel//self.k)
 
     def update(self, aggr_out: Tensor) -> Tensor:
-        aggr_out= aggr_out.view(-1,self.k*self.out_channel//self.k)
+        # aggr_out= aggr_out.view(-1,self.k*self.out_channel//self.k)
         if self.bias is not None:
             aggr_out = aggr_out + self.bias
         return aggr_out

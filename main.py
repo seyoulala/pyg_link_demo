@@ -19,7 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from data_loader import Data
-from model.models import CompGCN_DistMult,CompGCN_TransE,CompGCN_ConvE
+from model.models import CompGCN_DistMult,CompGCN_TransE,CompGCN_ConvE,RGAT_LINK
 
 import heapq
 from collections import defaultdict as ddict
@@ -121,23 +121,25 @@ def main(args):
         device = "cuda:{}".format(args.gpu)
     else:
         device = "cpu"
-    data = Data(args.data_dir, args.num_workers, args.batch_size)
+    data = Data(args.data_dir, args.num_workers, args.batch_size,args.num_neg)
     data_iter = data.data_iter
     args.num_rel = data.num_rel
     args.num_ent = data.num_ent
     print(args)
     data.edge_index = data.edge_index.to(device)
     data.edge_type  = data.edge_type.to(device)
-    compgcn_model = None
+    model = None
     if args.score_func=='dist':
-        compgcn_model = CompGCN_DistMult(data.edge_index,data.edge_type,args)
+        model = CompGCN_DistMult(data.edge_index,data.edge_type,args)
     elif args.score_func =='conve':
-        compgcn_model = CompGCN_ConvE(data.edge_index,data.edge_type,args)
+        model = CompGCN_ConvE(data.edge_index,data.edge_type,args)
+    else:
+        model = RGAT_LINK(data.edge_index,data.edge_type,args)
 
-    compgcn_model = compgcn_model.to(device)
+    model = model.to(device)
 
     loss_fn = th.nn.BCELoss()
-    optimizer = optim.Adam(compgcn_model.parameters(), lr=args.lr, weight_decay=args.l2)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
 
     best_epoch = -1
     best_mrr = 0.0
@@ -147,7 +149,7 @@ def main(args):
     print('****************************')
     print('Start training...')
     for epoch in range(args.max_epochs):
-        compgcn_model.train()
+        model.train()
         train_loss = []
         t0 = time()
         for step, batch in enumerate(data_iter['train']):
@@ -158,7 +160,7 @@ def main(args):
                 triple[:, 2],
                 label.squeeze(),
             )
-            logits = compgcn_model(sub, rel, obj)
+            logits = model(sub, rel, obj)
             tr_loss = loss_fn(logits, label)
             train_loss.append(tr_loss.item())
 
@@ -170,13 +172,13 @@ def main(args):
 
         if (epoch + 1) % 20 == 0:
             t1 = time()
-            val_results = evaluate(compgcn_model, device, data, top_k=5)
+            val_results = evaluate(model, device, data, top_k=5)
             t2 = time()
 
             if val_results["MRR"] > best_mrr:
                 best_mrr = val_results["MRR"]
                 best_epoch = epoch
-                th.save(compgcn_model.state_dict(), "{}/baseline_ckpt.pth".format(args.ckpt_dir))
+                th.save(model.state_dict(), "{}/baseline_ckpt.pth".format(args.ckpt_dir))
                 kill_cnt = 0
                 print("Saving model...")
             else:
@@ -191,9 +193,9 @@ def main(args):
             t1 = time()
             print("In Epoch {}, Train Loss: {:.4f}, Train Time: {:.2f}".format(epoch, train_loss, t1 - t0))
 
-    compgcn_model.eval()
-    compgcn_model.load_state_dict(th.load("{}/baseline_ckpt.pth".format(args.ckpt_dir)))
-    get_candidate_voter_list(compgcn_model, device, data, submit_path, top_k=5)
+    model.eval()
+    model.load_state_dict(th.load("{}/baseline_ckpt.pth".format(args.ckpt_dir)))
+    get_candidate_voter_list(model, device, data, submit_path, top_k=5)
     print("Submission file has been saved to: {}.".format(submit_path))
 
 
@@ -208,20 +210,21 @@ if __name__ == "__main__":
     parser.add_argument("--epoch", dest="max_epochs", type=int, default=1000, help="Number of epochs",)
     parser.add_argument("--l2", type=float, default=0.0, help="L2 Regularization for Optimizer")
     parser.add_argument("--lr", type=float, default=0.01, help="Starting Learning Rate")
-    parser.add_argument("--num_workers", type=int, default=10, help="Number of processes to construct batches",)
+    parser.add_argument("--num_workers", type=int, default=5, help="Number of processes to construct batches",)
     parser.add_argument("--seed", dest="seed", default=41504, type=int, help="Seed for randomization", )
     parser.add_argument("--num_bases", dest="num_bases", default=-1, type=int, help="Number of basis relation vectors to use", )
     parser.add_argument("--init_dim", dest="init_dim", default=50, type=int, help="Initial dimension size for entities and relations", )
     parser.add_argument('--embed_dim',dest="embed_dim",default=50,type=int ,help="Embedding dimension to give as input to score function")
-    parser.add_argument('-gcn_layer', dest='gcn_layer', default=1, type=int, help='Number of GCN Layers to use')
+    parser.add_argument('--gcn_layer', dest='gcn_layer', default=1, type=int, help='Number of GCN Layers to use')
     parser.add_argument("--gcn_dim",dest="gcn_dim",default=50,type=int,help="Number of hidden uints of GCN layer")
-    parser.add_argument("--layer_size", nargs="?", default="[50]", help="List of output size for each compGCN layer", )
     parser.add_argument("--gcn_drop", dest="dropout", default=0.1, type=float, help="Dropout to use in GCN Layer", )
     parser.add_argument('--hid_drop', dest='hid_drop', default=0.3, type=float, help='Dropout after GCN')
     parser.add_argument("--layer_dropout", nargs="?", default="[0.3]", help="List of dropout value after each compGCN layer", )
     parser.add_argument('--score_func', dest='score_func', default='dist', help='Score Function for Link prediction')
     parser.add_argument('--bias', dest='bias', action='store_true', help='Whether to use bias in the model')
     parser.add_argument('--cache', dest='cache', action='store_true', help='Whether to use cache  in the gcn model')
+    parser.add_argument('--num_neg', dest='num_neg', default=1, help='Number of Negative sample')
+
     # ConvE specific hyperparameters
     parser.add_argument('--hid_drop2', dest='hid_drop2', default=0.3, type=float, help='ConvE: Hidden dropout')
     parser.add_argument('--feat_drop', dest='feat_drop', default=0.3, type=float, help='ConvE: Feature Dropout')
@@ -231,12 +234,17 @@ if __name__ == "__main__":
                         help='ConvE: Number of filters in convolution')
     parser.add_argument('--ker_sz', dest='ker_sz', default=7, type=int, help='ConvE: Kernel size to use')
 
+    # rGAT specific hyperparameters
+    parser.add_argument('--k_kernel', dest='k_kernel', default=2, type=int, help='k Kernel to use for ent')
+    parser.add_argument('--d_q', dest='d_q', default=50, type=int, help='Embedding dimension to give as input to score function')
+
     args = parser.parse_args()
 
     np.random.seed(args.seed)
     th.manual_seed(args.seed)
 
-    args.layer_size = eval(args.layer_size)
     args.layer_dropout = eval(args.layer_dropout)
+    args.score_func = ''
+    args.batch_size=2
 
     main(args)

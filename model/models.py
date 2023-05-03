@@ -13,6 +13,7 @@ from helper import *
 from model.compgcn_conv_basis import CompGCNConvBasis
 from model.compgcn_conv import CompGCNConv
 from model.rgat_conv import RGATConv
+from torch_geometric.nn.inits import glorot
 
 class BaseModel(torch.nn.Module):
     def __init__(self, params):
@@ -35,43 +36,70 @@ class RGATBase(BaseModel):
         self.p.gcn_dim = self.p.embed_dim if self.p.gcn_layer == 1 else self.p.gcn_dim
         self.init_embed = get_param((self.p.num_ent,self.p.init_dim))
         self.device = self.edge_index.device
-        self.init_embed = get_param((num_rel, self.p.init_dim))
+        self.init_rel = get_param((num_rel*2, self.p.init_dim))
 
-        self.w1 = nn.Parameter(torch.Tensor(self.embed_dim//self.k,self.p.d_q))
-        self.w2 = nn.Parameter(torch.Tensor(self.embed_dim,self.p.d_q))
-        self.w3 = nn.Parameter(torch.Tensor(self.embed_dim+self.embed_dim//self.k,self.p.d_q))
-        self.w4 = nn.Parameter(torch.Tensor())
+        self.conv1 = RGATConv(self.p.init_dim,self.p.gcn_dim,num_rel,self.p.k_kernel)
+        self.conv2 = RGATConv(self.p.gcn_dim,self.p.embed_dim,num_rel,self.p.k_kernel) if self.p.gcn_layer==2 else None
 
-        self.conv1 = RGATConv(self.p.init_dim,self.p.gcn_dim,num_rel,self.p.k_channel)
-        self.conv2 = RGATConv(self.p.gcn_dim,self.p.embed_dim,num_rel,self.p.k_channel) if self.p.gcn_layer==2 else None
-
-    def forward(self,sub,rel):
-        r = self.init_rel if self.p.score_func != 'transe' else torch.cat([self.init_rel, -self.init_rel], dim=0)
+    def forward_base(self,sub,rel,drop1,drop2):
+        r = self.init_rel
         # x [N_ent,k,output_channel//k]
-        # r [N_edge]
         x,r  = self.conv1(self.init_embed,self.edge_index,self.edge_type,rel_emb=r)
-        x = x.view(-1,self.p.k_channel,self.embed_dim//self.p.v)
+        x = drop1(x)
+        x,r = self.conv2(x,self.edge_index,self.edge_type,rel_emb=r) if self.p.gcn_layer == 2 else (x, r)
+        x = drop2(x) if self.p.gcn_layer==2 else x
         # [batch_ent,k,output_channel//k]
         sub_emb = torch.index_select(x,0,sub)
         # [batch_ent,output_channel]
-        rel_emb = torch.index_select(r,0,rel).unsqueeze(dim=1).repeat(1,self.p.k_channel,1)
+        rel_emb = torch.index_select(r,0,rel)
+        return sub_emb,rel_emb,x
+
+
+class RGAT_LINK(RGATBase):
+    def __init__(self,edge_index,edge_type,params=None):
+        super(RGAT_LINK, self).__init__(edge_index,edge_type,params.num_rel,params)
+        self.drop = torch.nn.Dropout(self.p.hid_drop)
+        self.p = params
+
+        self.w1 = nn.Parameter(torch.Tensor(self.p.embed_dim//self.p.k_kernel,self.p.d_q))
+        self.w2 = nn.Parameter(torch.Tensor(self.p.embed_dim,self.p.d_q))
+        self.w3 = nn.Parameter(torch.Tensor(self.p.embed_dim+self.p.embed_dim//self.p.k_kernel,self.p.d_q))
+        self.lin = nn.Linear(self.p.k_kernel*self.p.d_q,self.p.embed_dim)
+
+        self.reset_paramters()
+
+    def reset_paramters(self):
+        glorot(self.w1)
+        glorot(self.w2)
+        glorot(self.w3)
+
+    def forward(self,sub,rel,obj=None):
+        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel, self.drop, self.drop)
+        sub_emb = sub_emb.view(-1,self.p.k_kernel,self.p.embed_dim//self.p.k_kernel)
+        # [batch_ent,output_channel]
+        rel_emb = rel_emb.unsqueeze(dim=1).repeat(1,self.p.k_kernel,1)
         # [batch_ent,k,d_q]
         key = torch.matmul(sub_emb,self.w1)
-        # [batch_ent,d_q]
-        query = torch.mm(rel_emb,self.w2).unsqueeze(dim=1)
+        # [batch_ent,k,d_q]
+        query = torch.matmul(rel_emb,self.w2).unsqueeze(dim=1)
         # [batch_ent,k]
         attn = torch.softmax((key*query).sum(dim=-1)/torch.sqrt(self.p.d_q),dim=1)
         embe_concat = torch.concat([sub_emb,rel_emb],dim=-1)
         # [batch_ent,k,d_q]
-        embe_concat = torch.matmul(embe_concat,self.w3)*(attn.view(-1,self.p.k_channel,1))
-        embe_concat = embe_concat.view(-1,self.p.k_channel*self.p.d_q)
-        qa_emb = torch.enb
+        embe_concat = torch.matmul(embe_concat,self.w3)*(attn.view(-1,self.p.k_kernel,1))
+        # [batch_ent,k*d_q]
+        embe_concat = embe_concat.view(-1,self.p.k_kernel*self.p.d_q)
+        output = torch.tanh(self.lin(embe_concat))
 
-
-
-
-
-
+        if obj is None:
+            # [batch_size,num_ent]
+            x = torch.mm(output, all_ent.transpose(1, 0))
+        else:
+            dst_emb = torch.index_select(all_ent,0,obj)
+            # [batch_size]
+            x = torch.sum(output*dst_emb,dim=1,keepdim=False)
+        score = torch.sigmoid(x)
+        return score
 
 
 class CompGCNBase(BaseModel):

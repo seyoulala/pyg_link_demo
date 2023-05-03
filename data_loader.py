@@ -8,19 +8,18 @@
 @desc:
 '''
 
-from collections import defaultdict as ddict
-from tqdm import tqdm
 import random
-import numpy as np
+from collections import defaultdict as ddict
+from typing import *
+
 import pandas as pd
 import torch
 from ordered_set import OrderedSet
 from torch.utils.data import DataLoader, Dataset
-from typing import *
 
 
 class TrainDataset(Dataset):
-    def __init__(self, triples: List, sr2o: dict, num_ent: int, num_neg=1):
+    def __init__(self, triples: List ,sr2o: dict, num_ent: int, num_neg=1):
         self.triples = triples
         self.sr2o = sr2o
         self.num_ent = num_ent
@@ -85,10 +84,11 @@ class TestDataset(Dataset):
 
 
 class Data(object):
-    def __init__(self, data_dir, num_workers, batch_size):
+    def __init__(self, data_dir, num_workers, batch_size, num_neg):
         self.data_dir = data_dir
         self.num_workers = num_workers
         self.batch_size = batch_size
+        self.num_neg = num_neg
 
         ent_set, rel_set = OrderedSet(), OrderedSet()
         # 读入事件类型表，event_id表示所有的事件类型
@@ -202,7 +202,7 @@ class Data(object):
         def get_train_data_loader(split, batch_size, shuffle=True):
             return DataLoader(
                 TrainDataset(
-                    self.data[split], self.sr2o[split], self.num_ent,
+                    self.data[split], self.sr2o[split], self.num_ent, self.num_neg
                 ),
                 batch_size=batch_size,
                 shuffle=shuffle,
