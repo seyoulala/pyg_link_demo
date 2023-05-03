@@ -244,7 +244,5 @@ if __name__ == "__main__":
     th.manual_seed(args.seed)
 
     args.layer_dropout = eval(args.layer_dropout)
-    args.score_func = ''
-    args.batch_size=2
 
     main(args)
