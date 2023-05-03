@@ -14,11 +14,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
+from torch_geometric.nn.conv import RGATConv
 from torch_geometric.utils import  remove_self_loops,add_self_loops,softmax
 from torch_geometric.typing import Tensor,Adj
 
 class RGATConv(MessagePassing):
-    def __init__(self, in_channel, out_channel, num_rel, k,concat=True,act=lambda x: x,dropout= 0.1,bias=True,
+    def __init__(self, in_channel, out_channel, num_rels, k,concat=True,dropout= 0.1,bias=True,
                  negative_slope=0.2, params=None,**kwargs):
         """
         """
@@ -27,14 +28,12 @@ class RGATConv(MessagePassing):
 
         self.in_channel = in_channel
         self.out_channel = out_channel
-        self.num_rel= num_rel
+        self.num_rels = num_rels
         self.k = k
         self.concat = concat
         self.negative_slope = negative_slope
         self.dropout = dropout
         self.p = params
-        self.act = act
-
 
         # k entity weight aspect weight
         self.ent_wk = nn.Linear(self.in_channel,self.out_channel,bias=False)
@@ -43,8 +42,11 @@ class RGATConv(MessagePassing):
         #
         self.attn_w = nn.Parameter(th.Tensor(1,self.k,(self.out_channel//self.k)*3))
 
+        self.w1 = nn.Parameter(th.Tensor(self.out_channel//self.k,self.p.dim))
+        self.w2 = nn.Parameter(th.Tensor(self.out_channel,self.p.dim))
+        self.w3 = nn.Parameter(th.Tensor(self.out_channel+self.out_channel//self.k,self.p.dim))
         if bias:
-            self.bias = nn.Parameter(th.Tensor(1,self.out_channel))
+            self.bias = nn.Parameter(th.Tensor(1,(self.out_channel//k)*self.k))
         else:
             self.register_parameter('bias',None)
 
@@ -71,8 +73,7 @@ class RGATConv(MessagePassing):
         r = self.rel_wk(r)
         #
         output = self.propagate(edge_index,x=x,edge_type=edge_type,rel_emb=r)
-        output = self.bn(output)
-        return self.act(output),r
+        return output,r
 
     def message(self,edge_index_i,x_i,x_j,edge_type,rel_emb):
         # [N_edge,k,out_channel//k]
@@ -86,12 +87,14 @@ class RGATConv(MessagePassing):
         alpha = softmax(alpha,index=edge_index_i)
         # [N_edge,k,out_channel//k]
         alpha = F.dropout(alpha,p=self.dropout,training=True)
-        out = (x_j*r)*(alpha.view(-1,self.k,1))
-        return out
+        out = (x_j*r)*alpha.view(-1,self.k,1)
+
+        return th.sigmoid(out)
 
     def update(self, aggr_out: Tensor) -> Tensor:
-        return aggr_out.view(-1,self.k*self.out_channel//self.k)
-        # return aggr_out
+        aggr_out= aggr_out.view(-1,self.k*self.out_channel//self.k)
+        if self.bias is not None:
+            aggr_out = aggr_out + self.bias
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
