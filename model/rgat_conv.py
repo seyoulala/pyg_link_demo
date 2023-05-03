@@ -89,12 +89,13 @@ class RGATConv(MessagePassing):
         alpha = F.dropout(alpha,p=self.dropout,training=True)
         out = (x_j*r)*alpha.view(-1,self.k,1)
 
-        return th.sigmoid(out)
+        return out
 
     def update(self, aggr_out: Tensor) -> Tensor:
         aggr_out= aggr_out.view(-1,self.k*self.out_channel//self.k)
         if self.bias is not None:
             aggr_out = aggr_out + self.bias
+        return aggr_out
 
     def __repr__(self):
         return '{}({}, {}, heads={})'.format(self.__class__.__name__,
