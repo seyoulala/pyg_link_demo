@@ -47,7 +47,7 @@ class TrainDataset(Dataset):
     def collate_fn(data):
         triples = []
         labels = []
-        for triple, feature, label in data:
+        for triple, label in data:
             triples.append(triple)
             labels.append(label)
         triple = torch.cat(triples, dim=0)
@@ -76,7 +76,7 @@ class TestDataset(Dataset):
     def collate_fn(data):
         triples = []
         ids = []
-        for triple, feature, idx in data:
+        for triple, idx in data:
             triples.append(triple)
             ids.append(idx)
         triples = torch.stack(triples, dim=0)
