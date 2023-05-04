@@ -249,7 +249,6 @@ if __name__ == "__main__":
 
     np.random.seed(args.seed)
     th.manual_seed(args.seed)
-    args.score_func =''
     args.layer_dropout = eval(args.layer_dropout)
 
     main(args)
