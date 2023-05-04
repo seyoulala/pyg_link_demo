@@ -39,9 +39,9 @@ class RGATBase(BaseModel):
         # id embedding
         self.device = self.edge_index.device
         self.id_embed = get_param((self.p.num_ent,self.p.init_dim))
-        self.gender_embed = nn.Embedding(self.ent_feature[:,0].max().item()+1,self.p.init_dim)
-        self.age_embed = nn.Embedding(self.ent_feature[:,1].max().item()+1,self.p.init_dim)
-        self.level_embed = nn.Embedding(self.ent_feature[:,2].max().item()+1,self.p.init_dim)
+        self.gender_embed = nn.Embedding(3,self.p.init_dim)
+        self.age_embed = nn.Embedding(9,self.p.init_dim)
+        self.level_embed = nn.Embedding(11,self.p.init_dim)
         # [num_ent,init_dim*4]
         # self.init_embed = torch.concat([self.id_embed,self.gender_embed,self.age_embed,self.level_embed],dim=0)
         self.init_rel = get_param((num_rel*2, self.p.init_dim*4))
