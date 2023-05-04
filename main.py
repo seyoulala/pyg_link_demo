@@ -137,9 +137,9 @@ def main(args):
     data.ent_feid  = data.ent_feid.to(device)
     model = None
     if args.score_func=='dist':
-        model = CompGCN_DistMult(data.edge_index,data.edge_type,args)
+        model = CompGCN_DistMult(data.edge_index,data.edge_type,data.ent_feid,args)
     elif args.score_func =='conve':
-        model = CompGCN_ConvE(data.edge_index,data.edge_type,args)
+        model = CompGCN_ConvE(data.edge_index,data.edge_type,data.ent_feid,args)
     else:
         model = RGAT_LINK(data.edge_index,data.edge_type,data.ent_feid,args)
 
