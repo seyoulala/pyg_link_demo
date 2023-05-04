@@ -118,7 +118,7 @@ class RGAT_LINK(RGATBase):
 
 
 class CompGCNBase(BaseModel):
-    def __init__(self, edge_index, edge_type,ent_feature, num_rel, params=None):
+    def __init__(self, edge_index, edge_type, ent_feature, num_rel, params=None):
         super(CompGCNBase, self).__init__(params)
 
         self.edge_index = edge_index
@@ -134,13 +134,13 @@ class CompGCNBase(BaseModel):
         self.level_embed = nn.Embedding(11, self.p.init_dim)
 
         if self.p.num_bases > 0:
-            self.init_rel = get_param((self.p.num_bases, self.p.init_dim*4))
+            self.init_rel = get_param((self.p.num_bases, self.p.init_dim * 4))
 
         else:
             if self.p.score_func == 'transe':
-                self.init_rel = get_param((num_rel, self.p.init_dim*4))
+                self.init_rel = get_param((num_rel, self.p.init_dim * 4))
             else:
-                self.init_rel = get_param((num_rel * 2, self.p.init_dim*4))
+                self.init_rel = get_param((num_rel * 2, self.p.init_dim * 4))
 
         if self.p.num_bases > 0:
             self.conv1 = CompGCNConvBasis(self.p.init_dim, self.p.gcn_dim, num_rel, self.p.num_bases, act=self.act,
@@ -172,8 +172,8 @@ class CompGCNBase(BaseModel):
 
 
 class CompGCN_TransE(CompGCNBase):
-    def __init__(self, edge_index, edge_type, params=None):
-        super(self.__class__, self).__init__(edge_index, edge_type, params.num_rel, params)
+    def __init__(self, edge_index, edge_type, ent_feature, params=None):
+        super(self.__class__, self).__init__(edge_index, edge_type, ent_feature, params.num_rel, params)
         self.drop = torch.nn.Dropout(self.p.hid_drop)
 
     def forward(self, sub, rel, obj=None):
@@ -187,8 +187,8 @@ class CompGCN_TransE(CompGCNBase):
 
 
 class CompGCN_DistMult(CompGCNBase):
-    def __init__(self, edge_index, edge_type, params=None):
-        super(self.__class__, self).__init__(edge_index, edge_type, params.num_rel, params)
+    def __init__(self, edge_index, edge_type, ent_feature, params=None):
+        super(self.__class__, self).__init__(edge_index, edge_type, ent_feature, params.num_rel, params)
         self.drop = torch.nn.Dropout(self.p.hid_drop)
 
     def forward(self, sub, rel, obj=None):
@@ -221,8 +221,8 @@ class CompGCN_DistMult(CompGCNBase):
 
 
 class CompGCN_ConvE(CompGCNBase):
-    def __init__(self, edge_index, edge_type, params=None):
-        super(self.__class__, self).__init__(edge_index, edge_type, params.num_rel, params)
+    def __init__(self, edge_index, edge_type, ent_feature, params=None):
+        super(self.__class__, self).__init__(edge_index, edge_type, ent_feature, params.num_rel, params)
 
         self.bn0 = torch.nn.BatchNorm2d(1)
         self.bn1 = torch.nn.BatchNorm2d(self.p.num_filt)
