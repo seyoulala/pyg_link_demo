@@ -126,6 +126,7 @@ def main(args):
         torch.backends.cudnn.enabled=True
     else:
         device = "cpu"
+    args.device=device
     data = Data(args.data_dir, args.num_workers, args.batch_size,args.num_neg)
     data_iter = data.data_iter
     args.num_rel = data.num_rel
