@@ -66,6 +66,7 @@ class RGATConv(MessagePassing):
         output = self.propagate(edge_index,x=x,edge_type=edge_type,rel_emb=r)
         output = self.drop(output)
         output = self.bn(output)
+
         return torch.tanh(output),r
 
     def message(self,edge_index_i,x_i,x_j,edge_type,rel_emb):

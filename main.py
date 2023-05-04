@@ -10,6 +10,8 @@
 import os
 import argparse
 from time import time
+
+import torch.backends.cudnn
 from tqdm import tqdm
 
 
@@ -119,6 +121,9 @@ def evaluate(model, device, data, top_k=5):
 def main(args):
     if args.gpu >= 0 and th.cuda.is_available():
         device = "cuda:{}".format(args.gpu)
+        torch.backends.cudnn.benchmark=True
+        torch.backends.cudnn.deterministic=True
+        torch.backends.cudnn.enabled=True
     else:
         device = "cpu"
     data = Data(args.data_dir, args.num_workers, args.batch_size,args.num_neg)
@@ -128,13 +133,14 @@ def main(args):
     print(args)
     data.edge_index = data.edge_index.to(device)
     data.edge_type  = data.edge_type.to(device)
+    data.ent_feid  = data.ent_feid.to(device)
     model = None
     if args.score_func=='dist':
         model = CompGCN_DistMult(data.edge_index,data.edge_type,args)
     elif args.score_func =='conve':
         model = CompGCN_ConvE(data.edge_index,data.edge_type,args)
     else:
-        model = RGAT_LINK(data.edge_index,data.edge_type,args)
+        model = RGAT_LINK(data.edge_index,data.edge_type,data.ent_feid,args)
 
     model = model.to(device)
 
@@ -242,6 +248,8 @@ if __name__ == "__main__":
 
     np.random.seed(args.seed)
     th.manual_seed(args.seed)
+
+
 
     args.layer_dropout = eval(args.layer_dropout)
 

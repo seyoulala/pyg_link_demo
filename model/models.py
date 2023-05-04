@@ -28,13 +28,25 @@ class BaseModel(torch.nn.Module):
 
 
 class RGATBase(BaseModel):
-    def __init__(self,edge_index,edge_type,num_rel,params=None):
+    def __init__(self,edge_index,edge_type,ent_feature,num_rel,params=None):
         super(RGATBase, self).__init__(params)
 
         self.edge_index = edge_index
         self.edge_type = edge_type
+        self.ent_feature = ent_feature
         self.p.gcn_dim = self.p.embed_dim if self.p.gcn_layer == 1 else self.p.gcn_dim
-        self.init_embed = get_param((self.p.num_ent,self.p.init_dim))
+        # 需要加上节点的额外的embedding特征
+        self.gender_weight = get_param((self.ent_feature[:,0].max().item()+1,self.p.init_dim))
+        self.age_weight = get_param((self.ent_feature[:,1].max().item()+1,self.p.init_dim))
+        self.level_weight = get_param((self.ent_feature[:,2].max().item()+1,self.p.init_dim))
+        # id embedding
+        self.id_embed = get_param((self.p.num_ent,self.p.init_dim))
+        self.gender_embed = torch.index_select(self.gender_weight,0,self.ent_feature[:,0].squeeze())
+        self.age_embed = torch.index_select(self.age_weight,0,self.ent_feature[:,1].squeeze())
+        self.level_embed = torch.index_select(self.level_weight,0,self.ent_feature[:,2].squeeze())
+        # [num_ent,init_dim*4]
+        self.init_embed = torch.concat([self.id_embed,self.gender_embed,self.age_embed,self.level_embed],dim=0)
+
         self.device = self.edge_index.device
         self.init_rel = get_param((num_rel*2, self.p.init_dim))
 
@@ -56,8 +68,8 @@ class RGATBase(BaseModel):
 
 
 class RGAT_LINK(RGATBase):
-    def __init__(self,edge_index,edge_type,params=None):
-        super(RGAT_LINK, self).__init__(edge_index,edge_type,params.num_rel,params)
+    def __init__(self,edge_index,edge_type,ent_feature,params=None):
+        super(RGAT_LINK, self).__init__(edge_index,edge_type,ent_feature,params.num_rel,params)
         self.drop = torch.nn.Dropout(self.p.hid_drop)
         self.p = params
 
@@ -101,7 +113,6 @@ class RGAT_LINK(RGATBase):
             x = torch.sum(output*dst_emb,dim=1,keepdim=False)
         score = torch.sigmoid(x)
         return score
-
 
 class CompGCNBase(BaseModel):
     def __init__(self, edge_index, edge_type, num_rel, params=None):
