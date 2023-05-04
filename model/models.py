@@ -133,14 +133,15 @@ class CompGCNBase(BaseModel):
         self.age_embed = nn.Embedding(9, self.p.init_dim)
         self.level_embed = nn.Embedding(11, self.p.init_dim)
 
+        self.p.init_dim = self.p.init_dim * 4
         if self.p.num_bases > 0:
-            self.init_rel = get_param((self.p.num_bases, self.p.init_dim * 4))
+            self.init_rel = get_param((self.p.num_bases, self.p.init_dim))
 
         else:
             if self.p.score_func == 'transe':
-                self.init_rel = get_param((num_rel, self.p.init_dim * 4))
+                self.init_rel = get_param((num_rel, self.p.init_dim ))
             else:
-                self.init_rel = get_param((num_rel * 2, self.p.init_dim * 4))
+                self.init_rel = get_param((num_rel * 2, self.p.init_dim))
 
         if self.p.num_bases > 0:
             self.conv1 = CompGCNConvBasis(self.p.init_dim, self.p.gcn_dim, num_rel, self.p.num_bases, act=self.act,
