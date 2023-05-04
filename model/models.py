@@ -44,10 +44,9 @@ class RGATBase(BaseModel):
         self.gender_embed = torch.index_select(self.gender_weight,0,self.ent_feature[:,0].squeeze())
         self.age_embed = torch.index_select(self.age_weight,0,self.ent_feature[:,1].squeeze())
         self.level_embed = torch.index_select(self.level_weight,0,self.ent_feature[:,2].squeeze())
-        # [num_ent,init_dim*4]
-        self.init_embed = torch.concat([self.id_embed,self.gender_embed,self.age_embed,self.level_embed],dim=0)
-
         self.device = self.edge_index.device
+        # [num_ent,init_dim*4]
+        self.init_embed = torch.concat([self.id_embed,self.gender_embed,self.age_embed,self.level_embed],dim=0).to(self.device)
         self.init_rel = get_param((num_rel*2, self.p.init_dim))
 
         self.conv1 = RGATConv(self.p.init_dim,self.p.gcn_dim,num_rel,self.p.k_kernel)
@@ -56,7 +55,7 @@ class RGATBase(BaseModel):
     def forward_base(self,sub,rel,drop1,drop2):
         r = self.init_rel
         # x [N_ent,k,output_channel//k]
-        x,r  = self.conv1(self.init_embed.to(sub.device),self.edge_index,self.edge_type,rel_emb=r)
+        x,r  = self.conv1(self.init_embed,self.edge_index,self.edge_type,rel_emb=r)
         x = drop1(x)
         x,r = self.conv2(x,self.edge_index,self.edge_type,rel_emb=r) if self.p.gcn_layer == 2 else (x, r)
         x = drop2(x) if self.p.gcn_layer==2 else x
