@@ -134,7 +134,7 @@ def main(args):
     print(args)
     data.edge_index = data.edge_index.to(device)
     data.edge_type  = data.edge_type.to(device)
-    data.ent_feid  = data.ent_feid.to(device)
+    # data.ent_feid  = data.ent_feid.to(device)
     model = None
     if args.score_func=='dist':
         model = CompGCN_DistMult(data.edge_index,data.edge_type,args)
