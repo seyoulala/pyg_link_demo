@@ -116,13 +116,13 @@ class Data(object):
         gender_set = set(user_info['gender_id'].tolist())
         level_set = set(user_info['user_level'].tolist())
 
-        self.age2id = {age: idx for age, idx in enumerate(age_set)}
-        self.gender2id = {gender: idx for gender, idx in enumerate(gender_set)}
-        self.level2id = {level: idx for level, idx in enumerate(level_set)}
+        self.age2id = {age: idx for idx, age in enumerate(age_set)}
+        self.gender2id = {gender: idx for idx,gender in enumerate(gender_set)}
+        self.level2id = {level: idx for idx,level in enumerate(level_set)}
 
         self.ent_fe = {}
         for index, rows in user_info.iterrows():
-            self.ent_fe[self.ent2id[rows['user_id']]] = torch.LongTensor([self.gender2id[rows['gender_id']], self.age2id['age_level'],
+            self.ent_fe[self.ent2id[rows['user_id']]] = torch.LongTensor([self.gender2id[rows['gender_id']], self.age2id[rows['age_level']],
                                                          self.level2id[rows['user_level']]])
         self.ent_feid = []
         for entid in range(self.num_ent):
@@ -132,7 +132,7 @@ class Data(object):
         del self.ent_fe, self.age2id, self.gender2id, self.level2id
         gc.collect()
 
-        print("Number of user fe: {}".format(len(self.ent_fe)))
+
 
         self.data = ddict(list)
         self.sr2o = dict()
@@ -222,6 +222,7 @@ class Data(object):
         self.edge_index = torch.stack([torch.LongTensor(src), torch.LongTensor(dst)], dim=0)
         self.edge_type = torch.LongTensor(rels)
         self.ent_feid = torch.stack(self.ent_feid,dim=0)
+        print("Number of user fe: {}".format(self.ent_feid.shape))
         # identify in and out edges
         def get_train_data_loader(split, batch_size, shuffle=True):
             return DataLoader(

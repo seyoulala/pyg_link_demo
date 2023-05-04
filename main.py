@@ -211,18 +211,18 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", dest="output_dir", default="./output", help="Output dir", )
     parser.add_argument("--ckpt_dir", dest="ckpt_dir", default="./checkpoint", help="Checkpoint dir", )
     parser.add_argument("--opn", dest="opn", default="corr", help="Composition Operation to be used in CompGCN", )
-    parser.add_argument("--batch", dest="batch_size", default=16388, type=int, help="Batch size" )
+    parser.add_argument("--batch", dest="batch_size", default=10, type=int, help="Batch size" )
     parser.add_argument("--gpu", type=int, default=0, help="Set GPU Ids : Eg: For CPU = -1, For Single GPU = 0", )
     parser.add_argument("--epoch", dest="max_epochs", type=int, default=1000, help="Number of epochs",)
     parser.add_argument("--l2", type=float, default=0.0, help="L2 Regularization for Optimizer")
     parser.add_argument("--lr", type=float, default=0.01, help="Starting Learning Rate")
-    parser.add_argument("--num_workers", type=int, default=5, help="Number of processes to construct batches",)
+    parser.add_argument("--num_workers", type=int, default=2, help="Number of processes to construct batches",)
     parser.add_argument("--seed", dest="seed", default=41504, type=int, help="Seed for randomization", )
     parser.add_argument("--num_bases", dest="num_bases", default=-1, type=int, help="Number of basis relation vectors to use", )
     parser.add_argument("--init_dim", dest="init_dim", default=50, type=int, help="Initial dimension size for entities and relations", )
-    parser.add_argument('--embed_dim',dest="embed_dim",default=50,type=int ,help="Embedding dimension to give as input to score function")
+    parser.add_argument('--embed_dim',dest="embed_dim",default=200,type=int ,help="Embedding dimension to give as input to score function")
     parser.add_argument('--gcn_layer', dest='gcn_layer', default=1, type=int, help='Number of GCN Layers to use')
-    parser.add_argument("--gcn_dim",dest="gcn_dim",default=50,type=int,help="Number of hidden uints of GCN layer")
+    parser.add_argument("--gcn_dim",dest="gcn_dim",default=200,type=int,help="Number of hidden uints of GCN layer")
     parser.add_argument("--gcn_drop", dest="dropout", default=0.1, type=float, help="Dropout to use in GCN Layer", )
     parser.add_argument('--hid_drop', dest='hid_drop', default=0.3, type=float, help='Dropout after GCN')
     parser.add_argument("--layer_dropout", nargs="?", default="[0.3]", help="List of dropout value after each compGCN layer", )
@@ -242,14 +242,12 @@ if __name__ == "__main__":
 
     # rGAT specific hyperparameters
     parser.add_argument('--k_kernel', dest='k_kernel', default=2, type=int, help='k Kernel to use for ent')
-    parser.add_argument('--d_q', dest='d_q', default=50, type=int, help='Embedding dimension to give as input to score function')
+    parser.add_argument('--d_q', dest='d_q', default=200, type=int, help='Embedding dimension to give as input to score function')
 
     args = parser.parse_args()
 
     np.random.seed(args.seed)
     th.manual_seed(args.seed)
-
-
 
     args.layer_dropout = eval(args.layer_dropout)
 
