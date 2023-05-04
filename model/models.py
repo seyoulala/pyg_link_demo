@@ -35,27 +35,27 @@ class RGATBase(BaseModel):
         self.edge_type = edge_type
         self.ent_feature = ent_feature
         self.p.gcn_dim = self.p.embed_dim if self.p.gcn_layer == 1 else self.p.gcn_dim
-        # 需要加上节点的额外的embedding特征
-        self.gender_weight = get_param((self.ent_feature[:,0].max().item()+1,self.p.init_dim))
-        self.age_weight = get_param((self.ent_feature[:,1].max().item()+1,self.p.init_dim))
-        self.level_weight = get_param((self.ent_feature[:,2].max().item()+1,self.p.init_dim))
+        # 需要加上节点的额外的embedding特
         # id embedding
         self.device = self.edge_index.device
         self.id_embed = get_param((self.p.num_ent,self.p.init_dim))
-        self.gender_embed = torch.index_select(self.gender_weight,0,self.ent_feature[:,0].view(-1))
-        self.age_embed = torch.index_select(self.age_weight,0,self.ent_feature[:,1].view(-1))
-        self.level_embed = torch.index_select(self.level_weight,0,self.ent_feature[:,2].view(-1))
+        self.gender_embed = nn.Embedding(self.ent_feature[:,0].max().item()+1,self.p.init_dim)
+        self.age_embed = nn.Embedding(self.ent_feature[:,1].max().item()+1,self.p.init_dim)
+        self.level_embed = nn.Embedding(self.ent_feature[:,2].max().item()+1,self.p.init_dim)
         # [num_ent,init_dim*4]
-        self.init_embed = torch.concat([self.id_embed,self.gender_embed,self.age_embed,self.level_embed],dim=0)
-        self.init_rel = get_param((num_rel*2, self.p.init_dim))
+        # self.init_embed = torch.concat([self.id_embed,self.gender_embed,self.age_embed,self.level_embed],dim=0)
+        self.init_rel = get_param((num_rel*2, self.p.init_dim*4))
 
-        self.conv1 = RGATConv(self.p.init_dim,self.p.gcn_dim,num_rel,self.p.k_kernel)
+        self.conv1 = RGATConv(self.p.init_dim*4,self.p.gcn_dim,num_rel,self.p.k_kernel)
         self.conv2 = RGATConv(self.p.gcn_dim,self.p.embed_dim,num_rel,self.p.k_kernel) if self.p.gcn_layer==2 else None
 
     def forward_base(self,sub,rel,drop1,drop2):
         r = self.init_rel
         # x [N_ent,k,output_channel//k]
-        print(self.init_embed.is_cuda())
+        self.x1 = self.gender_embed(self.ent_feature[:,0].view(-1))
+        self.x2 = self.age_embed(self.ent_feature[:,1].view(-1))
+        self.x3 = self.level_embed(self.ent_feature[:,2].view(-1))
+        self.init_embed = torch.cat([self.id_embed,self.x1,self.x2,self.x3],dim=1).to(self.device)
         x,r  = self.conv1(self.init_embed,self.edge_index,self.edge_type,rel_emb=r)
         x = drop1(x)
         x,r = self.conv2(x,self.edge_index,self.edge_type,rel_emb=r) if self.p.gcn_layer == 2 else (x, r)

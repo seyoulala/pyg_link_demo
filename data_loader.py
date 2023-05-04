@@ -121,9 +121,9 @@ class Data(object):
         self.level2id = {level: idx for idx,level in enumerate(level_set)}
 
         self.ent_fe = {}
-        for index, rows in user_info.iterrows():
-            self.ent_fe[self.ent2id[rows['user_id']]] = torch.LongTensor([self.gender2id[rows['gender_id']], self.age2id[rows['age_level']],
-                                                         self.level2id[rows['user_level']]])
+        for rows in user_info.itertuples():
+            self.ent_fe[self.ent2id[rows.user_id]] = torch.LongTensor([self.gender2id[rows.gender_id], self.age2id[rows.age_level],
+                                                         self.level2id[rows.user_level]])
         self.ent_feid = []
         for entid in range(self.num_ent):
             self.ent_feid.append(self.ent_fe[entid])
