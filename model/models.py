@@ -55,6 +55,7 @@ class RGATBase(BaseModel):
     def forward_base(self,sub,rel,drop1,drop2):
         r = self.init_rel
         # x [N_ent,k,output_channel//k]
+        print(self.init_embed.is_cuda())
         x,r  = self.conv1(self.init_embed,self.edge_index,self.edge_type,rel_emb=r)
         x = drop1(x)
         x,r = self.conv2(x,self.edge_index,self.edge_type,rel_emb=r) if self.p.gcn_layer == 2 else (x, r)
