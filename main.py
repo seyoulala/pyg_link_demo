@@ -230,7 +230,7 @@ if __name__ == "__main__":
     parser.add_argument('--score_func', dest='score_func', default='dist', help='Score Function for Link prediction')
     parser.add_argument('--bias', dest='bias', action='store_true', help='Whether to use bias in the model')
     parser.add_argument('--cache', dest='cache', action='store_true', help='Whether to use cache  in the gcn model')
-    parser.add_argument('--num_neg', dest='num_neg', default=1, help='Number of Negative sample')
+    parser.add_argument('--num_neg', dest='num_neg', default=1,type=int, help='Number of Negative sample')
 
     # ConvE specific hyperparameters
     parser.add_argument('--hid_drop2', dest='hid_drop2', default=0.3, type=float, help='ConvE: Hidden dropout')
