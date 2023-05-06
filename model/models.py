@@ -8,6 +8,7 @@
 @desc:
 '''
 import torch.nn as nn
+import  torch.nn.functional as F
 from torch_geometric.nn.inits import glorot
 
 from helper import *
@@ -74,7 +75,7 @@ class RGAT_LINK(RGATBase):
         super(RGAT_LINK, self).__init__(edge_index, edge_type, ent_feature, params.num_rel, params)
         self.drop = torch.nn.Dropout(self.p.hid_drop)
         self.p = params
-
+        self.act = F.relu
         self.w1 = nn.Parameter(torch.Tensor(self.p.embed_dim // self.p.k_kernel, self.p.d_q))
         self.w2 = nn.Parameter(torch.Tensor(self.p.embed_dim, self.p.d_q))
         self.w3 = nn.Parameter(torch.Tensor(self.p.embed_dim + self.p.embed_dim // self.p.k_kernel, self.p.d_q))
@@ -104,7 +105,7 @@ class RGAT_LINK(RGATBase):
         embe_concat = torch.matmul(embe_concat, self.w3) * (attn.view(-1, self.p.k_kernel, 1))
         # [batch_ent,k*d_q]
         embe_concat = embe_concat.view(-1, self.p.k_kernel * self.p.d_q)
-        output = torch.tanh(self.lin(embe_concat))
+        output = self.act(self.lin(embe_concat))
 
         if obj is None:
             # [batch_size,num_ent]
