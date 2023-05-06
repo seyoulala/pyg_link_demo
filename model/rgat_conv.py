@@ -39,8 +39,8 @@ class RGATConv(MessagePassing):
         self.ent_wk = nn.Linear(self.in_channel,self.out_channel,bias=False)
         # k rel weight aspect weight
         self.rel_wk = nn.Linear(self.in_channel,self.out_channel,bias=False)
-        #
         self.attn_w = nn.Parameter(th.Tensor(1,self.k,(self.out_channel//self.k)*3))
+        self.loop_rel = nn.Parameter(th.Tensor(1, self.in_channels))  # self loop 这条边的embedding
         if bias:
             self.bias = nn.Parameter(th.Tensor((self.out_channel//k)*self.k))
         else:
@@ -55,15 +55,18 @@ class RGATConv(MessagePassing):
         glorot(self.ent_wk)
         glorot(self.rel_wk)
         glorot(self.attn_w)
+        glorot(self.loop_rel)
         zeros(self.bias)
 
     def forward(self,x,edge_index,edge_type,rel_emb=None,size=None):
         # [num_ent,self.out_channel]
+        num_ent = x.size(0)
         x = self.ent_wk(x)
         # r = th.index_select(rel_emb,0,edge_type)
         # [N_edge,self.out_channel]
+        rel_emb = torch.cat([rel_emb,self.loop_rel],dim=1)
         r = self.rel_wk(rel_emb)
-        #
+        self.loop_type = torch.full((num_ent,), rel_emb.size(0) - 1, dtype=torch.long).to(self.device)
         if self.add_self_loops:
             if isinstance(edge_index, Tensor):
                 # We only want to add self-loops for nodes that appear both as
@@ -72,12 +75,13 @@ class RGATConv(MessagePassing):
                 num_nodes = min(size) if size is not None else num_nodes
                 edge_index, edge_attr = remove_self_loops(edge_index)
                 edge_index, edge_attr = add_self_loops(edge_index, edge_attr,num_nodes=num_nodes)
+            edge_type = torch.cat([edge_type,self.loop_type],dim=0)
 
         output = self.propagate(edge_index,x=x,edge_type=edge_type,rel_emb=r)
         output = self.drop(output)
         output = self.bn(output)
 
-        return F.relu(output),r
+        return F.relu(output),r[:-1] # ignore self loop embed
 
     def message(self,edge_index_i,x_i,x_j,edge_type,rel_emb):
         # [N_edge,k,out_channel//k]
