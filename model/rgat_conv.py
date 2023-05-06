@@ -95,7 +95,7 @@ class RGATConv(MessagePassing):
         # [N_edge,k]
         alpha = softmax(alpha,index=edge_index_i)
         # [N_edge,k,out_channel//k]
-        alpha = F.dropout(alpha,p=self.dropout,training=True)
+        alpha = F.dropout(alpha,p=self.dropout,training=self.training)
         out = (x_j*r)*alpha.view(-1,self.k,1)
         return out.view(-1,self.k*self.out_channel//self.k)
 
