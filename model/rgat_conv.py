@@ -14,12 +14,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import MessagePassing
 from torch_geometric.nn.inits import glorot, zeros
-from torch_geometric.utils import  softmax
+from torch_geometric.utils import  softmax,remove_self_loops,add_self_loops
 from torch_geometric.typing import Tensor,Adj
 
 class RGATConv(MessagePassing):
     def __init__(self, in_channel, out_channel, num_rels, k,concat=True,dropout= 0.1,bias=True,
-                 negative_slope=0.2, params=None,**kwargs):
+                 negative_slope=0.2,add_self_loop=True, params=None,**kwargs):
         """
         """
         kwargs.setdefault('aggr', 'add')
@@ -32,6 +32,7 @@ class RGATConv(MessagePassing):
         self.concat = concat
         self.negative_slope = negative_slope
         self.dropout = dropout
+        self.add_self_loop = add_self_loop
         self.p = params
 
         # k entity weight aspect weight
@@ -56,18 +57,29 @@ class RGATConv(MessagePassing):
         glorot(self.attn_w)
         zeros(self.bias)
 
-    def forward(self,x,edge_index,edge_type,rel_emb=None):
+    def forward(self,x,edge_index,edge_type,rel_emb=None,size=None):
         # [num_ent,self.out_channel]
         x = self.ent_wk(x)
         # r = th.index_select(rel_emb,0,edge_type)
         # [N_edge,self.out_channel]
         r = self.rel_wk(rel_emb)
         #
+        if self.add_self_loops:
+            if isinstance(edge_index, Tensor):
+                # We only want to add self-loops for nodes that appear both as
+                # source and target nodes:
+                num_nodes = x.size(0)
+                num_nodes = min(size) if size is not None else num_nodes
+                edge_index, edge_attr = remove_self_loops(edge_index)
+                edge_index, edge_attr = add_self_loops(
+                    edge_index, edge_attr, fill_value=self.fill_value,
+                    num_nodes=num_nodes)
+
         output = self.propagate(edge_index,x=x,edge_type=edge_type,rel_emb=r)
         output = self.drop(output)
         output = self.bn(output)
 
-        return torch.tanh(output),r
+        return F.relu(output),r
 
     def message(self,edge_index_i,x_i,x_j,edge_type,rel_emb):
         # [N_edge,k,out_channel//k]
@@ -81,7 +93,7 @@ class RGATConv(MessagePassing):
         # [N_edge,k]
         alpha = softmax(alpha,index=edge_index_i)
         # [N_edge,k,out_channel//k]
-        # alpha = F.dropout(alpha,p=self.dropout,training=True)
+        alpha = F.dropout(alpha,p=self.dropout,training=True)
         out = (x_j*r)*alpha.view(-1,self.k,1)
         return out.view(-1,self.k*self.out_channel//self.k)
 
