@@ -19,7 +19,7 @@ from torch_geometric.typing import Tensor,Adj
 
 class RGATConv(MessagePassing):
     def __init__(self, in_channel, out_channel, num_rels, k,concat=True,dropout= 0.1,bias=True,
-                 negative_slope=0.2,add_self_loop=True, params=None,**kwargs):
+                 negative_slope=0.2,add_self_loops=True, params=None,**kwargs):
         """
         """
         kwargs.setdefault('aggr', 'add')
@@ -32,7 +32,7 @@ class RGATConv(MessagePassing):
         self.concat = concat
         self.negative_slope = negative_slope
         self.dropout = dropout
-        self.add_self_loop = add_self_loop
+        self.add_self_loops = add_self_loops
         self.p = params
 
         # k entity weight aspect weight
