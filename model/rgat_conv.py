@@ -71,9 +71,7 @@ class RGATConv(MessagePassing):
                 num_nodes = x.size(0)
                 num_nodes = min(size) if size is not None else num_nodes
                 edge_index, edge_attr = remove_self_loops(edge_index)
-                edge_index, edge_attr = add_self_loops(
-                    edge_index, edge_attr, fill_value=self.fill_value,
-                    num_nodes=num_nodes)
+                edge_index, edge_attr = add_self_loops(edge_index, edge_attr,num_nodes=num_nodes)
 
         output = self.propagate(edge_index,x=x,edge_type=edge_type,rel_emb=r)
         output = self.drop(output)
