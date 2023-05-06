@@ -34,6 +34,7 @@ class RGATConv(MessagePassing):
         self.dropout = dropout
         self.add_self_loops = add_self_loops
         self.p = params
+        self.device = params.device
 
         # k entity weight aspect weight
         self.ent_wk = nn.Linear(self.in_channel,self.out_channel,bias=False)
