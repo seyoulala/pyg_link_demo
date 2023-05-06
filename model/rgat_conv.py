@@ -34,7 +34,6 @@ class RGATConv(MessagePassing):
         self.dropout = dropout
         self.add_self_loops = add_self_loops
         self.p = params
-        self.device = params.device
 
         # k entity weight aspect weight
         self.ent_wk = nn.Linear(self.in_channel,self.out_channel,bias=False)
@@ -67,7 +66,7 @@ class RGATConv(MessagePassing):
         # [N_edge,self.out_channel]
         rel_emb = torch.cat([rel_emb,self.loop_rel],dim=0)
         r = self.rel_wk(rel_emb)
-        self.loop_type = torch.full((num_ent,), rel_emb.size(0) - 1, dtype=torch.long).to(self.device)
+        self.loop_type = torch.full((num_ent,), rel_emb.size(0) - 1, dtype=torch.long).to(x.device)
         if self.add_self_loops:
             if isinstance(edge_index, Tensor):
                 # We only want to add self-loops for nodes that appear both as
