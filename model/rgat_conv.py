@@ -64,7 +64,7 @@ class RGATConv(MessagePassing):
         x = self.ent_wk(x)
         # r = th.index_select(rel_emb,0,edge_type)
         # [N_edge,self.out_channel]
-        rel_emb = torch.cat([rel_emb,self.loop_rel],dim=1)
+        rel_emb = torch.cat([rel_emb,self.loop_rel],dim=0)
         r = self.rel_wk(rel_emb)
         self.loop_type = torch.full((num_ent,), rel_emb.size(0) - 1, dtype=torch.long).to(self.device)
         if self.add_self_loops:
