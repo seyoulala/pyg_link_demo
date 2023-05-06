@@ -81,7 +81,7 @@ class RGATConv(MessagePassing):
         output = self.drop(output)
         output = self.bn(output)
 
-        return F.relu(output),r[:-1] # ignore self loop embed
+        return F.tanh(output),r[:-1] # ignore self loop embed
 
     def message(self,edge_index_i,x_i,x_j,edge_type,rel_emb):
         # [N_edge,k,out_channel//k]
