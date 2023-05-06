@@ -40,7 +40,7 @@ class RGATConv(MessagePassing):
         # k rel weight aspect weight
         self.rel_wk = nn.Linear(self.in_channel,self.out_channel,bias=False)
         self.attn_w = nn.Parameter(th.Tensor(1,self.k,(self.out_channel//self.k)*3))
-        self.loop_rel = nn.Parameter(th.Tensor(1, self.in_channels))  # self loop 这条边的embedding
+        self.loop_rel = nn.Parameter(th.Tensor(1, self.in_channel))  # self loop 这条边的embedding
         if bias:
             self.bias = nn.Parameter(th.Tensor((self.out_channel//k)*self.k))
         else:
