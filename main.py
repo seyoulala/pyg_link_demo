@@ -177,7 +177,7 @@ def main(args):
 
         train_loss = np.sum(train_loss)
 
-        if (epoch + 1) % 20 == 0:
+        if (epoch + 1) % 10 == 0:
             t1 = time()
             val_results = evaluate(model, device, data, top_k=5)
             t2 = time()
@@ -190,7 +190,7 @@ def main(args):
                 print("Saving model...")
             else:
                 kill_cnt += 1
-                if kill_cnt > 7:
+                if kill_cnt > 5:
                     print("Early stop. Best MRR {} at Epoch".format(best_mrr, best_epoch))
                     break
             print("In Epoch {}, Train Loss: {:.4f}, Valid MRR: {:.5}, Valid HITS: {:.5}, Train Time: {:.2f}, Valid Time: {:.2f}".format(
