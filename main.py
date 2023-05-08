@@ -21,7 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from data_loader import Data
-from model.models import CompGCN_DistMult,CompGCN_TransE,CompGCN_ConvE,RGAT_LINK
+from model.models import CompGCN_DistMult,CompGCN_TransE,CompGCN_ConvE,RGAT_LINK,RHGAT_ConvE
 
 import heapq
 from collections import defaultdict as ddict
@@ -136,15 +136,20 @@ def main(args):
     data.edge_type  = data.edge_type.to(device)
     data.ent_feid  = data.ent_feid.to(device)
     model = None
-    if args.score_func=='dist':
-        model = CompGCN_DistMult(data.edge_index,data.edge_type,data.ent_feid,args)
-    elif args.score_func =='conve':
-        model = CompGCN_ConvE(data.edge_index,data.edge_type,data.ent_feid,args)
-    else:
-        model = RGAT_LINK(data.edge_index,data.edge_type,data.ent_feid,args)
+
+    if args.model_name =='compgcn':
+        if args.score_func=='dist':
+            model = CompGCN_DistMult(data.edge_index,data.edge_type,data.ent_feid,args)
+        elif args.score_func =='conve':
+            model = CompGCN_ConvE(data.edge_index,data.edge_type,data.ent_feid,args)
+    elif args.model_name=='rgat':
+        if args.score_func == 'qaat':
+            model = RGAT_LINK(data.edge_index,data.edge_type,data.ent_feid,args)
+    elif args.model_name=='rhgat':
+        if args.score_func =='conve':
+            model = RHGAT_ConvE(data.edge_index,data.edge_type,data.ent_feid,args)
 
     model = model.to(device)
-
     loss_fn = th.nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
 
@@ -227,7 +232,8 @@ if __name__ == "__main__":
     parser.add_argument("--gcn_drop", dest="dropout", default=0.1, type=float, help="Dropout to use in GCN Layer", )
     parser.add_argument('--hid_drop', dest='hid_drop', default=0.3, type=float, help='Dropout after GCN')
     parser.add_argument("--layer_dropout", nargs="?", default="[0.3]", help="List of dropout value after each compGCN layer", )
-    parser.add_argument('--score_func', dest='score_func', default='dist', help='Score Function for Link prediction')
+    parser.add_argument('--model_name', dest='model_name', default='rhgat', help='Gnn model as  encoder ')
+    parser.add_argument('--score_func', dest='score_func', default='conve', help='Score Function for Link prediction')
     parser.add_argument('--bias', dest='bias', action='store_true', help='Whether to use bias in the model')
     parser.add_argument('--cache', dest='cache', action='store_true', help='Whether to use cache  in the gcn model')
     parser.add_argument('--num_neg', dest='num_neg', default=1,type=int, help='Number of Negative sample')
@@ -244,11 +250,16 @@ if __name__ == "__main__":
     # rGAT specific hyperparameters
     parser.add_argument('--k_kernel', dest='k_kernel', default=2, type=int, help='k Kernel to use for ent')
     parser.add_argument('--d_q', dest='d_q', default=200, type=int, help='Embedding dimension to give as input to score function')
+    ### RHGAT specific hyperparameters
+    parser.add_argument('--heads', dest='heads', default=1, type=int, help='multi heads for attention')
+    parser.add_argument('--combine', dest='combine', default='add', type=str, help='combination method ')
 
     args = parser.parse_args()
 
     np.random.seed(args.seed)
     th.manual_seed(args.seed)
-    args.layer_dropout = eval(args.layer_dropout)
-
+    args.batch_size=5
+    args.init_dim=1
+    args.embed_dim=4
+    args.gcn_dim=4
     main(args)
