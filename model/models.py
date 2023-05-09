@@ -173,8 +173,9 @@ class RHGAT_ConvE(RHGATBase):
         self.m_conv1 = torch.nn.Conv2d(1, out_channels=self.p.num_filt, kernel_size=(self.p.ker_sz, self.p.ker_sz),
                                        stride=1, padding=0, bias=self.p.bias)
 
-        flat_sz_h = int(2 * self.p.k_w) - self.p.ker_sz + 1
-        flat_sz_w = self.p.k_h - self.p.ker_sz + 1
+        # flat_sz_h = int(2 * self.p.k_w) - self.p.ker_sz + 1
+        flat_sz_w = self.p.k_w - self.p.ker_sz + 1
+        flat_sz_h = int(2*self.p.k_h) - self.p.ker_sz + 1
         self.flat_sz = flat_sz_h * flat_sz_w * self.p.num_filt
         self.fc = torch.nn.Linear(self.flat_sz, self.p.embed_dim)
 
@@ -182,7 +183,7 @@ class RHGAT_ConvE(RHGATBase):
         e1_embed = e1_embed.view(-1, 1, self.p.embed_dim)
         rel_embed = rel_embed.view(-1, 1, self.p.embed_dim)
         stack_inp = torch.cat([e1_embed, rel_embed], 1)
-        stack_inp = torch.transpose(stack_inp, 2, 1).reshape((-1, 1, 2 * self.p.k_w, self.p.k_h))
+        stack_inp = torch.transpose(stack_inp, 2, 1).reshape((-1, 1, 2 * self.p.k_h, self.p.k_w))
         return stack_inp
 
     def forward(self, sub, rel, obj=None):

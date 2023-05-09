@@ -241,8 +241,8 @@ if __name__ == "__main__":
     # ConvE specific hyperparameters
     parser.add_argument('--hid_drop2', dest='hid_drop2', default=0.3, type=float, help='ConvE: Hidden dropout')
     parser.add_argument('--feat_drop', dest='feat_drop', default=0.3, type=float, help='ConvE: Feature Dropout')
-    parser.add_argument('--k_w', dest='k_w', default=10, type=int, help='ConvE: k_w')
-    parser.add_argument('--k_h', dest='k_h', default=20, type=int, help='ConvE: k_h')
+    parser.add_argument('--k_w', dest='k_w', default=20, type=int, help='ConvE: k_w')
+    parser.add_argument('--k_h', dest='k_h', default=10, type=int, help='ConvE: k_h')
     parser.add_argument('--num_filt', dest='num_filt', default=200, type=int,
                         help='ConvE: Number of filters in convolution')
     parser.add_argument('--ker_sz', dest='ker_sz', default=7, type=int, help='ConvE: Kernel size to use')
@@ -251,7 +251,7 @@ if __name__ == "__main__":
     parser.add_argument('--k_kernel', dest='k_kernel', default=2, type=int, help='k Kernel to use for ent')
     parser.add_argument('--d_q', dest='d_q', default=200, type=int, help='Embedding dimension to give as input to score function')
     ### RHGAT specific hyperparameters
-    parser.add_argument('--heads', dest='heads', default=2, type=int, help='multi heads for attention')
+    parser.add_argument('--heads', dest='heads', default=4, type=int, help='multi heads for attention')
     parser.add_argument('--combine', dest='combine', default='add', type=str, help='combination method ')
 
     args = parser.parse_args()
