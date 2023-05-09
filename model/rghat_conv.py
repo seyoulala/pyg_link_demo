@@ -33,7 +33,7 @@ class RGHATConv(MessagePassing):
         self.dropout = dropout
         self.add_self_loops = add_self_loops
         self.heads = heads
-        self.p = params
+        self.combine = params.combine
 
         self.ent_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
         # k rel weight aspect weight
@@ -72,16 +72,16 @@ class RGHATConv(MessagePassing):
     def forward(self,x,edge_index,edge_type,rel_emb=None,size=None):
         x = self.ent_wk(x).view(-1,self.heads,self.out_channel)
         rel_emb = self.rel_wk(rel_emb).view(-1,self.heads,self.out_channel)
-        out = self.propagate(edge_index=edge_index,x=(x,x),edge_type=edge_type,rel_emb=rel_emb,size=size)
+        out = self.propagate(edge_index=edge_index,x=x,edge_type=edge_type,rel_emb=rel_emb,size=size)
         # out = out.view(-1,self.heads,self.out_channel)
         # x = x.view(-1,self.heads,self.out_channel)
 
-        if self.p.combine =='add':
+        if self.combine =='add':
             out = th.matmul(out+x,self.w3)
             out = self.activation(out)
             out = out.mean(dim=1)
 
-        elif self.p.combine =='mult':
+        elif self.combine =='mult':
             out = th.matmul(out*x,self.w4)
             out = self.activation(out)
             out = out.mean(dim=1)
