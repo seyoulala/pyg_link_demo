@@ -101,49 +101,35 @@ class RGHATConv(MessagePassing):
         # [n_edge,heads]
         alpha_hr = (a_hr*self.p).sum(dim=-1)
         alpha_hr = self.activation(alpha_hr)
-        # [n_ent]
-        # deg = degree(edge_index_i)
         # [n_edge,1]
-        deg = torch.zeros(edge_index_i.size(1))
-
-        ent_deg = th.index_select(deg,0,edge_index_i).view(-1,1)
-        alpha_hr = alpha_hr.div(ent_deg)
+        ent_deg = torch.zeros(edge_index_i.size(0)).to(x_i.device)
+        for i in range(self.num_rels*2):
+            mask = edge_type==i
+            rdeg = degree(edge_index_i[mask])
+            ent_deg[mask] = th.index_select(rdeg,0,edge_index_i[mask])
+        # ent_deg = th.index_select(deg,0,edge_index_i).view(-1,1)
+        alpha_hr = alpha_hr.div(ent_deg.view(-1,1))
         r_alpha = softmax(alpha_hr,edge_index_i,dim=0)
-        r_alpha = r_alpha*ent_deg
+        r_alpha = r_alpha*ent_deg.view(-1,1)
         # cal witn_in ent attention
         b_hrt = th.concat([a_hr,x_j],dim=-1).matmul(self.w2)
         alpha_bht = (b_hrt*self.q).sum(dim=-1)
         alpha_bht = self.activation(alpha_bht)
         # [n_edge,k]
-        across_out = torch.zeros_like(r_alpha)
-        for i in range(self.num_rels):
+        across_out = torch.zeros_like(r_alpha).to(x_i.device)
+        for i in range(self.num_rels*2):
             mask= edge_type==i
             across_out[mask] =softmax(alpha_bht[mask],edge_index_i[mask],dim=0)
         # [n_edge,k]
         u_hrt = r_alpha*across_out
         if self.training and self.dropout>0:
             u_hrt = F.dropout(u_hrt,self.dropout,training=self.training)
-        out = x_j*u_hrt.view(-1,self.heads,1)
-        # 先add后然后进行attention
-        return  out
+        out = x_j * u_hrt.view(-1,self.heads,1)
+        return  out.view(-1,self.heads*self.out_channel)
 
     def update(self, aggr_out: Tensor) -> Tensor:
-        aggr_out = aggr_out.view(-1,self.heads,self.out_channel)
-        if self.bias:
+        # aggr_out = aggr_out.view(-1,self.heads,self.out_channel)
+        if  self.bias is not None:
             return  aggr_out+self.bias
         else:
             return aggr_out
-
-
-
-
-
-
-
-
-
-
-
-
-
-

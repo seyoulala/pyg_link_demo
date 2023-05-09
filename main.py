@@ -251,7 +251,7 @@ if __name__ == "__main__":
     parser.add_argument('--k_kernel', dest='k_kernel', default=2, type=int, help='k Kernel to use for ent')
     parser.add_argument('--d_q', dest='d_q', default=200, type=int, help='Embedding dimension to give as input to score function')
     ### RHGAT specific hyperparameters
-    parser.add_argument('--heads', dest='heads', default=1, type=int, help='multi heads for attention')
+    parser.add_argument('--heads', dest='heads', default=2, type=int, help='multi heads for attention')
     parser.add_argument('--combine', dest='combine', default='add', type=str, help='combination method ')
 
     args = parser.parse_args()
