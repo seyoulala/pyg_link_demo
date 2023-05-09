@@ -24,7 +24,7 @@ class RGHATConv(MessagePassing):
         """
         """
         kwargs.setdefault('aggr', 'add')
-        super(RGHATConv, self).__init__(**kwargs)
+        super(RGHATConv, self).__init__(node_dim=0,**kwargs)
 
         self.in_channel = in_channel
         self.out_channel = out_channel
@@ -70,10 +70,11 @@ class RGHATConv(MessagePassing):
         zeros(self.bias)
 
     def forward(self,x,edge_index,edge_type,rel_emb=None,size=None):
-        x = self.ent_wk(x)
-        rel_emb = self.rel_wk(rel_emb)
+        x = self.ent_wk(x).view(-1,self.heads,self.out_channel)
+        rel_emb = self.rel_wk(rel_emb).view(-1,self.heads,self.out_channel)
 
-        out = self.propagate(edge_index=edge_index,x=x,edge_type=edge_type,rel_emb=rel_emb,size=size)
+
+        out = self.propagate(edge_index=edge_index,x=(x,x),edge_type=edge_type,rel_emb=rel_emb,size=size)
         out = out.view(-1,self.heads,self.out_channel)
         x = x.view(-1,self.heads,self.out_channel)
         if self.p.combine =='add':
@@ -91,11 +92,11 @@ class RGHATConv(MessagePassing):
 
         return out,rel_emb.mean(dim=1)
 
-    def message(self,x_i,x_j,edge_index_i,edge_type,rel_emb) -> Tensor:
-        x_i = x_i.view(-1,self.heads,self.out_channel)
-        x_j = x_j.view(-1,self.heads,self.out_channel)
+    def message(self,x_j,x_i,edge_index_i,edge_type,rel_emb) -> Tensor:
+        # x_i = x_i.view(-1,self.heads,self.out_channel)
+        # x_j = x_j.view(-1,self.heads,self.out_channel)
         r = th.index_select(rel_emb,0,edge_type)
-        r = r.view(-1,self.heads,self.out_channel)
+        # r = r.view(-1,self.heads,self.out_channel)
         # [n_edge,heads,output_channel]
         a_hr = th.concat([x_i,r],dim=-1).matmul(self.w1)
         # [n_edge,heads]
@@ -124,12 +125,7 @@ class RGHATConv(MessagePassing):
         u_hrt = r_alpha*across_out
         if self.training and self.dropout>0:
             u_hrt = F.dropout(u_hrt,self.dropout,training=self.training)
-        out = x_j * u_hrt.view(-1,self.heads,1)
-        return  out.view(-1,self.heads*self.out_channel)
+        out = x_j * u_hrt.unsqueeze(-1)
+        # return  out.view(-1,self.heads*self.out_channel)
+        return  out
 
-    def update(self, aggr_out: Tensor) -> Tensor:
-        # aggr_out = aggr_out.view(-1,self.heads,self.out_channel)
-        if  self.bias is not None:
-            return  aggr_out+self.bias
-        else:
-            return aggr_out
