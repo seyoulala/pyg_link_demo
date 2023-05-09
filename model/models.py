@@ -136,8 +136,8 @@ class RHGATBase(BaseModel):
         self.level_embed = nn.Embedding(11, self.p.init_dim)
         self.init_rel = get_param((num_rel * 2, self.p.init_dim * 4))
 
-        self.conv1 = RGHATConv(self.p.init_dim*4,self.p.gcn_dim,heads=self.p.heads,num_rels=num_rel)
-        self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim,self.p.heads,num_rel,) if self.p.gcn_layer == 2 else None
+        self.conv1 = RGHATConv(self.p.init_dim*4,self.p.gcn_dim,heads=self.p.heads,num_rels=num_rel,params=params)
+        self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim,self.p.heads,num_rel,params=params) if self.p.gcn_layer == 2 else None
 
 
     def forward_base(self, sub, rel, drop1, drop2):
