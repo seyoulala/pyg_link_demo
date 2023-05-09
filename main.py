@@ -258,8 +258,4 @@ if __name__ == "__main__":
 
     np.random.seed(args.seed)
     th.manual_seed(args.seed)
-    args.batch_size=5
-    args.init_dim=1
-    args.embed_dim=4
-    args.gcn_dim=4
     main(args)
