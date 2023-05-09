@@ -72,11 +72,10 @@ class RGHATConv(MessagePassing):
     def forward(self,x,edge_index,edge_type,rel_emb=None,size=None):
         x = self.ent_wk(x).view(-1,self.heads,self.out_channel)
         rel_emb = self.rel_wk(rel_emb).view(-1,self.heads,self.out_channel)
-
-
         out = self.propagate(edge_index=edge_index,x=(x,x),edge_type=edge_type,rel_emb=rel_emb,size=size)
-        out = out.view(-1,self.heads,self.out_channel)
-        x = x.view(-1,self.heads,self.out_channel)
+        # out = out.view(-1,self.heads,self.out_channel)
+        # x = x.view(-1,self.heads,self.out_channel)
+
         if self.p.combine =='add':
             out = th.matmul(out+x,self.w3)
             out = self.activation(out)
@@ -93,8 +92,6 @@ class RGHATConv(MessagePassing):
         return out,rel_emb.mean(dim=1)
 
     def message(self,x_j,x_i,edge_index_i,edge_type,rel_emb) -> Tensor:
-        # x_i = x_i.view(-1,self.heads,self.out_channel)
-        # x_j = x_j.view(-1,self.heads,self.out_channel)
         r = th.index_select(rel_emb,0,edge_type)
         # r = r.view(-1,self.heads,self.out_channel)
         # [n_edge,heads,output_channel]
@@ -128,4 +125,10 @@ class RGHATConv(MessagePassing):
         out = x_j * u_hrt.unsqueeze(-1)
         # return  out.view(-1,self.heads*self.out_channel)
         return  out
+
+    def update(self, agg_out: Tensor) -> Tensor:
+        if self.bias is not None:
+            agg_out = agg_out+self.bias
+            return agg_out
+        return agg_out
 

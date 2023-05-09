@@ -23,7 +23,7 @@ class RGATConv(MessagePassing):
         """
         """
         kwargs.setdefault('aggr', 'add')
-        super(RGATConv, self).__init__(**kwargs)
+        super(RGATConv, self).__init__(node_dim=0,**kwargs)
 
         self.in_channel = in_channel
         self.out_channel = out_channel
