@@ -21,6 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from data_loader import Data
+from torch.cuda.amp import  autocast,GradScaler
 from model.models import CompGCN_DistMult,CompGCN_TransE,CompGCN_ConvE,RGAT_LINK,RHGAT_ConvE
 
 import heapq
@@ -152,6 +153,7 @@ def main(args):
     model = model.to(device)
     loss_fn = th.nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
+    scaler  = GradScaler()
 
     best_epoch = -1
     best_mrr = 0.0
@@ -172,17 +174,19 @@ def main(args):
                 triple[:, 2],
                 label.squeeze(),
             )
-            logits = model(sub, rel, obj)
-            tr_loss = loss_fn(logits, label)
+            with autocast():
+                logits = model(sub, rel, obj)
+                tr_loss = loss_fn(logits, label)
             train_loss.append(tr_loss.item())
-
-            optimizer.zero_grad()
-            tr_loss.backward()
-            optimizer.step()
-
+            scaler.scale(tr_loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+            # optimizer.zero_grad()
+            # tr_loss.backward()
+            # optimizer.step()
         train_loss = np.sum(train_loss)
 
-        if (epoch + 1) % 10 == 0:
+        if (epoch + 1) % 20 == 0:
             t1 = time()
             val_results = evaluate(model, device, data, top_k=5)
             t2 = time()
