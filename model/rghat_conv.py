@@ -100,7 +100,9 @@ class RGHATConv(MessagePassing):
         alpha_hr = (a_hr*self.p).sum(dim=-1)
         alpha_hr = self.activation(alpha_hr)
         # [n_edge,1]
-        ent_deg = torch.zeros(edge_index_i.size(0)).to(x_i.device)
+        # ent_deg = torch.zeros(edge_index_i.size(0)).to(x_i.device)
+        ent_deg = torch.zeros(edge_index_i.size(0))
+
         for i in range(self.num_rels*2):
             mask = edge_type==i
             rdeg = degree(edge_index_i[mask])
@@ -114,7 +116,8 @@ class RGHATConv(MessagePassing):
         alpha_bht = (b_hrt*self.q).sum(dim=-1)
         alpha_bht = self.activation(alpha_bht)
         # [n_edge,k]
-        across_out = torch.zeros_like(r_alpha).to(x_i.device)
+        # across_out = torch.zeros_like(r_alpha).to(x_i.device)
+        across_out = torch.zeros_like(r_alpha)
         for i in range(self.num_rels*2):
             mask= edge_type==i
             across_out[mask] =softmax(alpha_bht[mask],edge_index_i[mask],dim=0)
