@@ -95,9 +95,10 @@ class RGHATConv(MessagePassing):
         r = th.index_select(rel_emb,0,edge_type)
         # r = r.view(-1,self.heads,self.out_channel)
         # [n_edge,heads,output_channel]
-        a_hr = th.concat([x_i,r],dim=-1).matmul(self.w1)
+        x_i = th.concat([x_i,r],dim=-1).matmul(self.w1)
+        # a_hr = th.concat([x_i,r],dim=-1).matmul(self.w1)
         # [n_edge,heads]
-        alpha_hr = (a_hr*self.p).sum(dim=-1)
+        alpha_hr = (x_i*self.p).sum(dim=-1)
         alpha_hr = self.activation(alpha_hr)
         # [n_edge,1]
         ent_deg = torch.zeros(edge_index_i.size(0)).to(x_i.device)
@@ -110,8 +111,11 @@ class RGHATConv(MessagePassing):
         r_alpha = softmax(alpha_hr,edge_index_i,dim=0)
         r_alpha = r_alpha*ent_deg.view(-1,1)
         # cal witn_in ent attention
-        a_hr = th.concat([a_hr,x_j],dim=-1).matmul(self.w2)
-        alpha_bht = (a_hr*self.q).sum(dim=-1)
+        x_i = th.concat([x_i,x_j],dim=-1).matmul(self.w2)
+        # a_hr = th.concat([x_i,x_j],dim=-1).matmul(self.w2)
+        # a_hr = th.concat([a_hr,x_j],dim=-1).matmul(self.w2)
+        alpha_bht = (x_i*self.q).sum(dim=-1)
+        # alpha_bht = (a_hr*self.q).sum(dim=-1)
         alpha_bht = self.activation(alpha_bht)
         # [n_edge,k]
         across_out = torch.zeros_like(r_alpha).to(x_i.device)
