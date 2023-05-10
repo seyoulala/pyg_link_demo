@@ -151,7 +151,8 @@ def main(args):
             model = RHGAT_ConvE(data.edge_index,data.edge_type,data.ent_feid,args)
 
     model = model.to(device)
-    loss_fn = th.nn.BCELoss()
+    # loss_fn = th.nn.BCELoss()
+    loss_fn = torch.nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
     scaler  = GradScaler()
 

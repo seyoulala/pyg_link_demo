@@ -206,9 +206,9 @@ class RHGAT_ConvE(RHGATBase):
             dst_emb = torch.index_select(all_ent, 0, obj)
             x = torch.sum(x * dst_emb, dim=1, keepdim=False)
         # x += self.bias.expand_as(x)
-        score = torch.sigmoid(x)
-        return score
-
+        # score = torch.sigmoid(x)
+        # return score
+        return x 
 
 class CompGCNBase(BaseModel):
     def __init__(self, edge_index, edge_type, ent_feature, num_rel, params=None):
