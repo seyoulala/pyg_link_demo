@@ -126,7 +126,7 @@ class RGHATConv(MessagePassing):
         u_hrt = r_alpha*across_out
         if self.training and self.dropout>0:
             u_hrt = F.dropout(u_hrt,self.dropout,training=self.training)
-        out = x_j * u_hrt.unsqueeze(-1)
+        out = x_i * u_hrt.unsqueeze(-1)
         # return  out.view(-1,self.heads*self.out_channel)
         return  out
 

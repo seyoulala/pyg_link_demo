@@ -7,6 +7,7 @@
 @time: 2023/4/23 11:17
 @desc:
 '''
+import torch
 import torch.nn as nn
 import  torch.nn.functional as F
 from torch_geometric.nn.inits import glorot
@@ -41,15 +42,18 @@ class RGATBase(BaseModel):
         # 需要加上节点的额外的embedding特
         # id embedding
         self.device = self.edge_index.device
+        if self.p.feature_method == 'concat':
+            self.p.init_dim = self.p.init_dim * 4
+
         self.id_embed = get_param((self.p.num_ent, self.p.init_dim))
         self.gender_embed = nn.Embedding(3, self.p.init_dim)
         self.age_embed = nn.Embedding(9, self.p.init_dim)
         self.level_embed = nn.Embedding(11, self.p.init_dim)
         # [num_ent,init_dim*4]
         # self.init_embed = torch.concat([self.id_embed,self.gender_embed,self.age_embed,self.level_embed],dim=0)
-        self.init_rel = get_param((num_rel * 2, self.p.init_dim * 4))
+        self.init_rel = get_param((num_rel * 2, self.p.init_dim))
 
-        self.conv1 = RGATConv(self.p.init_dim * 4, self.p.gcn_dim, num_rel, self.p.k_kernel)
+        self.conv1 = RGATConv(self.p.init_dim, self.p.gcn_dim, num_rel, self.p.k_kernel)
         self.conv2 = RGATConv(self.p.gcn_dim, self.p.embed_dim, num_rel,
                               self.p.k_kernel) if self.p.gcn_layer == 2 else None
 
@@ -59,7 +63,15 @@ class RGATBase(BaseModel):
         self.x1 = self.gender_embed(self.ent_feature[:, 0].view(-1))
         self.x2 = self.age_embed(self.ent_feature[:, 1].view(-1))
         self.x3 = self.level_embed(self.ent_feature[:, 2].view(-1))
-        self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=1).to(self.device)
+        if self.p.feature_method =='concat':
+            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=1).to(self.device)
+        elif self.p.feature_method =='sum':
+            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
+            self.init_embed = torch.sum(self.init_embed,dim=0)
+        elif self.p.feature_method =='mean':
+            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
+            self.init_embed = torch.mean(self.init_embed,dim=0)
+
         x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, rel_emb=r)
         x = drop1(x)
         x, r = self.conv2(x, self.edge_index, self.edge_type, rel_emb=r) if self.p.gcn_layer == 2 else (x, r)
@@ -115,8 +127,9 @@ class RGAT_LINK(RGATBase):
             dst_emb = torch.index_select(all_ent, 0, obj)
             # [batch_size]
             x = torch.sum(output * dst_emb, dim=1, keepdim=False)
-        score = torch.sigmoid(x)
-        return score
+        # score = torch.sigmoid(x)
+        # return score
+        return x
 
 
 class RHGATBase(BaseModel):
@@ -130,13 +143,16 @@ class RHGATBase(BaseModel):
         # 需要加上节点的额外的embedding特
         # id embedding
         self.device = self.edge_index.device
+        if self.p.feature_method == 'concat':
+            self.p.init_dim = self.p.init_dim * 4
+
         self.id_embed = get_param((self.p.num_ent, self.p.init_dim))
         self.gender_embed = nn.Embedding(3, self.p.init_dim)
         self.age_embed = nn.Embedding(9, self.p.init_dim)
         self.level_embed = nn.Embedding(11, self.p.init_dim)
-        self.init_rel = get_param((num_rel * 2, self.p.init_dim * 4))
+        self.init_rel = get_param((num_rel * 2, self.p.init_dim))
 
-        self.conv1 = RGHATConv(self.p.init_dim*4,self.p.gcn_dim,heads=self.p.heads,num_rels=num_rel,params=params)
+        self.conv1 = RGHATConv(self.p.init_dim,self.p.gcn_dim,heads=self.p.heads,num_rels=num_rel,params=params)
         self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim,self.p.heads,num_rel,params=params) if self.p.gcn_layer == 2 else None
 
 
@@ -146,7 +162,15 @@ class RHGATBase(BaseModel):
         self.x1 = self.gender_embed(self.ent_feature[:, 0].view(-1))
         self.x2 = self.age_embed(self.ent_feature[:, 1].view(-1))
         self.x3 = self.level_embed(self.ent_feature[:, 2].view(-1))
-        self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=1).to(self.device)
+        if self.p.feature_method == 'concat':
+            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=1).to(self.device)
+        elif self.p.feature_method == 'sum':
+            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
+            self.init_embed = torch.sum(self.init_embed, dim=0)
+        elif self.p.feature_method == 'mean':
+            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
+            self.init_embed = torch.mean(self.init_embed, dim=0)
+
         x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, rel_emb=r)
         x = drop1(x)
         x, r = self.conv2(x, self.edge_index, self.edge_type, rel_emb=r) if self.p.gcn_layer == 2 else (x, r)
@@ -208,7 +232,7 @@ class RHGAT_ConvE(RHGATBase):
         # x += self.bias.expand_as(x)
         # score = torch.sigmoid(x)
         # return score
-        return x 
+        return x
 
 class CompGCNBase(BaseModel):
     def __init__(self, edge_index, edge_type, ent_feature, num_rel, params=None):
@@ -226,7 +250,8 @@ class CompGCNBase(BaseModel):
         self.age_embed = nn.Embedding(9, self.p.init_dim)
         self.level_embed = nn.Embedding(11, self.p.init_dim)
 
-        self.p.init_dim = self.p.init_dim * 4
+        if self.p.feature_method == 'concat':
+            self.p.init_dim = self.p.init_dim * 4
         if self.p.num_bases > 0:
             self.init_rel = get_param((self.p.num_bases, self.p.init_dim))
 
@@ -253,7 +278,14 @@ class CompGCNBase(BaseModel):
         self.x1 = self.gender_embed(self.ent_feature[:, 0].view(-1))
         self.x2 = self.age_embed(self.ent_feature[:, 1].view(-1))
         self.x3 = self.level_embed(self.ent_feature[:, 2].view(-1))
-        self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=1).to(self.device)
+        if self.p.feature_method == 'concat':
+            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=1).to(self.device)
+        elif self.p.feature_method == 'sum':
+            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
+            self.init_embed = torch.sum(self.init_embed, dim=0)
+        elif self.p.feature_method == 'mean':
+            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
+            self.init_embed = torch.mean(self.init_embed, dim=0)
         x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, rel_embed=r)
         x = drop1(x)
         x, r = self.conv2(x, self.edge_index, self.edge_type, rel_embed=r) if self.p.gcn_layer == 2 else (x, r)
@@ -310,9 +342,9 @@ class CompGCN_DistMult(CompGCNBase):
             # [batch_size]
             x = torch.sum(obj_emb * dst_emb, dim=1, keepdim=False)
         # x += self.bias.expand_as(x)
-        score = torch.sigmoid(x)
-        return score
-
+        # score = torch.sigmoid(x)
+        # return score
+        return x
 
 class CompGCN_ConvE(CompGCNBase):
     def __init__(self, edge_index, edge_type, ent_feature, params=None):
@@ -360,5 +392,6 @@ class CompGCN_ConvE(CompGCNBase):
             dst_emb = torch.index_select(all_ent, 0, obj)
             x = torch.sum(x * dst_emb, dim=1, keepdim=False)
         # x += self.bias.expand_as(x)
-        score = torch.sigmoid(x)
-        return score
+        # score = torch.sigmoid(x)
+        # return score
+        return x
