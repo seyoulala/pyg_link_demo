@@ -165,11 +165,11 @@ class RHGATBase(BaseModel):
         if self.p.feature_method == 'concat':
             self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=1).to(self.device)
         elif self.p.feature_method == 'sum':
-            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
-            self.init_embed = torch.sum(self.init_embed, dim=0)
+            self.init_embed = self.id_embed+self.x1+self.x2+self.x3
+            self.init_embed = self.init_embed.to(self.device)
         elif self.p.feature_method == 'mean':
-            self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
-            self.init_embed = torch.mean(self.init_embed, dim=0)
+            self.init_embed = (self.id_embed+self.x1+self.x2+self.x3)/4
+            self.init_embed = self.init_embed.to(self.device)
 
         x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, rel_emb=r)
         x = drop1(x)

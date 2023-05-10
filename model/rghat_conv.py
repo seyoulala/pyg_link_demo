@@ -112,7 +112,6 @@ class RGHATConv(MessagePassing):
         r_alpha = r_alpha*ent_deg.view(-1,1)
         # cal witn_in ent attention
         x_i = th.concat([x_i,x_j],dim=-1).matmul(self.w2)
-        # a_hr = th.concat([x_i,x_j],dim=-1).matmul(self.w2)
         # a_hr = th.concat([a_hr,x_j],dim=-1).matmul(self.w2)
         alpha_bht = (x_i*self.q).sum(dim=-1)
         # alpha_bht = (a_hr*self.q).sum(dim=-1)

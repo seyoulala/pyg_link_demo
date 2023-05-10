@@ -13,7 +13,7 @@ import  torch.nn as nn
 from torch_geometric.datasets import Planetoid
 import argparse
 from  model.models import  RHGATBase
-import torchstat
+from torchstat import  stat
 
 
 parser = argparse.ArgumentParser(description="Parser For Arguments",
@@ -46,6 +46,7 @@ parser.add_argument('--score_func', dest='score_func', default='conve', help='Sc
 parser.add_argument('--bias', dest='bias', action='store_true', help='Whether to use bias in the model')
 parser.add_argument('--cache', dest='cache', action='store_true', help='Whether to use cache  in the gcn model')
 parser.add_argument('--num_neg', dest='num_neg', default=1, type=int, help='Number of Negative sample')
+parser.add_argument('--feature_method', dest='feature_method', default='sum', type=str, help='Feature combine method')
 
 # ConvE specific hyperparameters
 parser.add_argument('--hid_drop2', dest='hid_drop2', default=0.3, type=float, help='ConvE: Hidden dropout')
@@ -65,7 +66,7 @@ parser.add_argument('--heads', dest='heads', default=8, type=int, help='multi he
 parser.add_argument('--combine', dest='combine', default='add', type=str, help='combination method ')
 
 args = parser.parse_args()
-args.num_ent = 299888
+args.num_ent = 7
 args.num_rel = 112
 
 src = torch.LongTensor([1,2,3,4,5,6,3,3,4])
@@ -86,12 +87,15 @@ class M(RHGATBase):
         return  sub_emb
 
 
+total = 0
+model = M(edge_index,edge_type,ent_feature,112,args)
+# for name,parameter in model.named_parameters():
+#     print(name,parameter.size())
+#     total+=parameter.numel()
+# print(total)
 
-model = M(edge_index,edge_type,ent_feature,4,args)
-for name,parameter in model.named_parameters():
-    print(name,parameter.size())
 
-# out = model(src,edge_type)
+out = model(src,edge_type)
 
 
 
