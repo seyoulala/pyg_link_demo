@@ -43,20 +43,21 @@ class RGATBase(BaseModel):
         # 需要加上节点的额外的embedding特
         # id embedding
         self.device = self.edge_index.device
+        self.init_dim = self.p.init_dim
 
-
-        self.id_embed = get_param((self.p.num_ent, self.p.init_dim))
-        self.gender_embed = nn.Embedding(3, self.p.init_dim)
-        self.age_embed = nn.Embedding(9, self.p.init_dim)
-        self.level_embed = nn.Embedding(11, self.p.init_dim)
+        self.id_embed = get_param((self.p.num_ent, self.init_dim))
+        self.gender_embed = nn.Embedding(3, self.init_dim)
+        self.age_embed = nn.Embedding(9, self.init_dim)
+        self.level_embed = nn.Embedding(11, self.init_dim)
 
         if self.p.feature_method == 'concat':
-            self.p.init_dim = self.p.init_dim * 4
+            self.init_dim = self.init_dim * 4
+
         # [num_ent,init_dim*4]
         # self.init_embed = torch.concat([self.id_embed,self.gender_embed,self.age_embed,self.level_embed],dim=0)
         self.init_rel = get_param((num_rel * 2, self.p.init_dim))
 
-        self.conv1 = RGATConv(self.p.init_dim, self.p.gcn_dim, num_rel, self.p.k_kernel)
+        self.conv1 = RGATConv(self.init_dim, self.p.gcn_dim, num_rel, self.p.k_kernel)
         self.conv2 = RGATConv(self.p.gcn_dim, self.p.embed_dim, num_rel,
                               self.p.k_kernel) if self.p.gcn_layer == 2 else None
 
