@@ -17,7 +17,6 @@ from model.compgcn_conv import CompGCNConv
 from model.compgcn_conv_basis import CompGCNConvBasis
 from model.rgat_conv import RGATConv
 from model.rghat_conv import  RGHATConv
-from torch_geometric.nn import  RGATConv
 
 
 class BaseModel(torch.nn.Module):
