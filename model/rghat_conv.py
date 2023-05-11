@@ -35,7 +35,6 @@ class RGHATConv(MessagePassing):
         self.heads = heads
         self.combine = params.combine
         self.bn = nn.BatchNorm1d(self.out_channel)
-        self.drop = torch.nn.Dropout(self.dropout)
         self.ent_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
         # k rel weight aspect weight
         self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
@@ -91,7 +90,7 @@ class RGHATConv(MessagePassing):
             out = out.mean(dim=1)
 
         out = self.bn(out)
-        out = self.drop(out)
+        # out = self.drop(out)
 
         return out,rel_emb.mean(dim=1)
 

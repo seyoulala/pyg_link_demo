@@ -211,7 +211,7 @@ class RHGAT_ConvE(RHGATBase):
         return stack_inp
 
     def forward(self, sub, rel, obj=None):
-        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel, self.hidden_drop, self.feature_drop)
+        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel, self.hidden_drop, self.hidden_drop2)
         stk_inp = self.concat(sub_emb, rel_emb)
         x = self.bn0(stk_inp)
         x = self.m_conv1(x)
