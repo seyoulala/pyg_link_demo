@@ -76,7 +76,6 @@ class RGHATConv(MessagePassing):
         # out = out.view(-1,self.heads,self.out_channel)
         # x = x.view(-1,self.heads,self.out_channel)
         out = F.dropout(out,self.dropout,training=self.training)
-        out = self.bn(out)
         if self.combine =='add':
             out = th.matmul(out+x,self.w3)
             out = self.activation(out)
@@ -89,7 +88,7 @@ class RGHATConv(MessagePassing):
         else:
             out = 1/2*(self.activation(th.matmul(out*x,self.w4)) + self.activation(th.matmul(out+x,self.w3)))
             out = out.mean(dim=1)
-
+        # out = self.bn(out)
         return out,rel_emb.mean(dim=1)
 
     def message(self,x_j,x_i,edge_index_i,edge_type,rel_emb) -> Tensor:
