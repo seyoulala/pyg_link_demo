@@ -54,7 +54,7 @@ class RGATBase(BaseModel):
 
         # [num_ent,init_dim*4]
         # self.init_embed = torch.concat([self.id_embed,self.gender_embed,self.age_embed,self.level_embed],dim=0)
-        self.init_rel = get_param((num_rel * 2, self.p.init_dim))
+        self.init_rel = get_param((num_rel * 2, self.init_dim))
 
         self.conv1 = RGATConv(self.init_dim, self.p.gcn_dim, num_rel, self.p.k_kernel)
         self.conv2 = RGATConv(self.p.gcn_dim, self.p.embed_dim, num_rel,
