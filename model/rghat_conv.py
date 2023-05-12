@@ -77,18 +77,19 @@ class RGHATConv(MessagePassing):
 
         if self.combine =='add':
             out = th.matmul(out+x,self.w3)
-            out = F.dropout(out, self.dropout, training=self.training)
+            # out = F.dropout(out, self.dropout, training=self.training)
             out = self.bn(out)
             out = self.activation(out)
             out = out.mean(dim=1)
 
         elif self.combine =='mult':
             out = th.matmul(out*x,self.w4)
-            out = F.dropout(out, self.dropout, training=self.training)
+            # out = F.dropout(out, self.dropout, training=self.training)
             out = self.bn(out)
             out = self.activation(out)
             out = out.mean(dim=1)
         else:
+            # out = F.dropout(out, self.dropout, training=self.training)
             out = 1/2*(self.activation(self.bn(th.matmul(out*x,self.w4))) +
                        self.activation(self.bn1(th.matmul(out+x,self.w3))))
             out = out.mean(dim=1)
