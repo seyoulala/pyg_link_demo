@@ -34,7 +34,7 @@ def get_metrics(pred, gt_list, train_list, top_k):
     result = {metric: 0.0 for metric in metrics}
     pred = np.array(pred)
     # 将训练集中的obj的概率重置为-np.inf
-    # pred[train_list] = -np.inf
+    pred[train_list] = -np.inf
     pred_dict = {idx: score for idx, score in enumerate(pred)}
     pred_dict = heapq.nlargest(top_k, pred_dict.items(), key=lambda kv :kv[1])
     pred_list = [k for k,v in pred_dict]
@@ -74,7 +74,7 @@ def get_candidate_voter_list(model, device, data, submit_path, top_k):
                 train_list = np.array(list(train_set), dtype=np.int64)
 
                 pred = np.array(pred)
-                # pred[train_list] = -np.inf
+                pred[train_list] = -np.inf
                 pred_dict = {idx: score for idx, score in enumerate(pred)}
                 candidate_voter_dict = heapq.nlargest(top_k, pred_dict.items(), key=lambda kv :kv[1])
                 candidate_voter_list = [data.id2ent[k] for k,v in candidate_voter_dict]
