@@ -35,6 +35,7 @@ class RGHATConv(MessagePassing):
         self.heads = heads
         self.combine = params.combine
         self.bn = nn.BatchNorm1d(self.heads)
+        self.bn1 = nn.BatchNorm1d(self.heads)
         self.ent_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
         # k rel weight aspect weight
         self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
@@ -73,23 +74,24 @@ class RGHATConv(MessagePassing):
         x = self.ent_wk(x).view(-1,self.heads,self.out_channel)
         rel_emb = self.rel_wk(rel_emb).view(-1,self.heads,self.out_channel)
         out = self.propagate(edge_index=edge_index,x=x,edge_type=edge_type,rel_emb=rel_emb,size=size)
-        # out = out.view(-1,self.heads,self.out_channel)
-        # x = x.view(-1,self.heads,self.out_channel)
-        out = F.dropout(out,self.dropout,training=self.training)
-        out = self.bn(out)
+
         if self.combine =='add':
             out = th.matmul(out+x,self.w3)
+            out = F.dropout(out, self.dropout, training=self.training)
+            out = self.bn(out)
             out = self.activation(out)
             out = out.mean(dim=1)
 
         elif self.combine =='mult':
             out = th.matmul(out*x,self.w4)
+            out = F.dropout(out, self.dropout, training=self.training)
+            out = self.bn(out)
             out = self.activation(out)
             out = out.mean(dim=1)
         else:
-            out = 1/2*(self.activation(th.matmul(out*x,self.w4)) + self.activation(th.matmul(out+x,self.w3)))
+            out = 1/2*(self.activation(self.bn(th.matmul(out*x,self.w4))) +
+                       self.activation(self.bn1(th.matmul(out+x,self.w3))))
             out = out.mean(dim=1)
-        # out = self.bn(out)
         return out,rel_emb.mean(dim=1)
 
     def message(self,x_j,x_i,edge_index_i,edge_type,rel_emb) -> Tensor:
@@ -127,7 +129,6 @@ class RGHATConv(MessagePassing):
         if self.training and self.dropout>0:
             u_hrt = F.dropout(u_hrt,self.dropout,training=self.training)
         out = x_i * u_hrt.unsqueeze(-1)
-        # return  out.view(-1,self.heads*self.out_channel)
         return  out
 
     def update(self, agg_out: Tensor) -> Tensor:
