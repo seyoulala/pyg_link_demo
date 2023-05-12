@@ -50,6 +50,7 @@ class RGHATConv(MessagePassing):
         self.p = nn.Parameter(th.Tensor(self.heads,self.out_channel))
         self.q = nn.Parameter(th.Tensor(self.heads,self.out_channel))
         self.activation = nn.LeakyReLU(negative_slope=self.negative_slope)
+        self.act = nn.Tanh()
 
         if not bias:
             self.register_parameter('bias',None)
@@ -79,19 +80,19 @@ class RGHATConv(MessagePassing):
             out = th.matmul(out+x,self.w3)
             # out = F.dropout(out, self.dropout, training=self.training)
             out = self.bn(out)
-            out = self.activation(out)
+            out = self.act(out)
             out = out.mean(dim=1)
 
         elif self.combine =='mult':
             out = th.matmul(out*x,self.w4)
             # out = F.dropout(out, self.dropout, training=self.training)
             out = self.bn(out)
-            out = self.activation(out)
+            out = self.act(out)
             out = out.mean(dim=1)
         else:
             # out = F.dropout(out, self.dropout, training=self.training)
-            out = 1/2*(self.activation(self.bn(th.matmul(out*x,self.w4))) +
-                       self.activation(self.bn1(th.matmul(out+x,self.w3))))
+            out = 1/2*(self.act(self.bn(th.matmul(out*x,self.w4))) +
+                       self.act(self.bn1(th.matmul(out+x,self.w3))))
             out = out.mean(dim=1)
         return out,rel_emb.mean(dim=1)
 
