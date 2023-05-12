@@ -34,7 +34,7 @@ class RGHATConv(MessagePassing):
         self.add_self_loops = add_self_loops
         self.heads = heads
         self.combine = params.combine
-        self.bn = nn.BatchNorm1d(self.out_channel)
+        self.bn = nn.BatchNorm1d(self.heads)
         self.ent_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
         # k rel weight aspect weight
         self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
@@ -76,6 +76,7 @@ class RGHATConv(MessagePassing):
         # out = out.view(-1,self.heads,self.out_channel)
         # x = x.view(-1,self.heads,self.out_channel)
         out = F.dropout(out,self.dropout,training=self.training)
+        out = self.bn(out)
         if self.combine =='add':
             out = th.matmul(out+x,self.w3)
             out = self.activation(out)
