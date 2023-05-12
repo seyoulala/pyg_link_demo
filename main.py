@@ -22,7 +22,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from data_loader import Data
 from torch.cuda.amp import  autocast,GradScaler
-from model.models import CompGCN_DistMult,CompGCN_TransE,CompGCN_ConvE,RGAT_LINK,RHGAT_ConvE
+from model.models import CompGCN_DistMult,CompGCN_ConvE,RGAT_LINK,RHGAT_ConvE,RHGAT_DistMult
 
 import heapq
 from collections import defaultdict as ddict
@@ -149,6 +149,8 @@ def main(args):
     elif args.model_name=='rhgat':
         if args.score_func =='conve':
             model = RHGAT_ConvE(data.edge_index,data.edge_type,data.ent_feid,args)
+        elif args.score_func =='dist':
+            model = RHGAT_DistMult(data.edge_index,data.edge_type,data.ent_feid,args)
 
     model = model.to(device)
     loss_fn = torch.nn.BCEWithLogitsLoss()

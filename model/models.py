@@ -152,7 +152,7 @@ class RHGATBase(BaseModel):
         self.age_embed = nn.Embedding(9, self.p.init_dim)
         self.level_embed = nn.Embedding(11, self.p.init_dim)
 
-        if self.p.feature_method == 'concat':
+        if self.p.feature_method == 'concat' :
             self.p.init_dim = self.p.init_dim * 4
         self.init_rel = get_param((num_rel * 2, self.p.init_dim))
 
@@ -237,6 +237,32 @@ class RHGAT_ConvE(RHGATBase):
         # score = torch.sigmoid(x)
         # return score
         return x
+
+
+class RHGAT_DistMult(RHGATBase):
+    def __init__(self, edge_index, edge_type, ent_feature, params=None):
+        super(self.__class__, self).__init__(edge_index, edge_type, ent_feature, params.num_rel, params)
+        self.drop = torch.nn.Dropout(self.p.hid_drop)
+
+    def forward(self, sub, rel, obj=None):
+
+        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel, self.drop, self.drop)
+        # [batch_size,embed_dim]
+        obj_emb = sub_emb * rel_emb
+
+        if obj is None:
+            # [batch_size,num_ent]
+            x = torch.mm(obj_emb, all_ent.transpose(1, 0))
+        else:
+            dst_emb = torch.index_select(all_ent, 0, obj)
+            # [batch_size]
+            x = torch.sum(obj_emb * dst_emb, dim=1, keepdim=False)
+        # x += self.bias.expand_as(x)
+        # score = torch.sigmoid(x)
+        # return score
+        return x
+
+
 
 class CompGCNBase(BaseModel):
     def __init__(self, edge_index, edge_type, ent_feature, num_rel, params=None):
