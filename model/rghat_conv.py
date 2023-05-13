@@ -50,7 +50,7 @@ class RGHATConv(MessagePassing):
         self.p = nn.Parameter(th.Tensor(self.heads,self.out_channel))
         self.q = nn.Parameter(th.Tensor(self.heads,self.out_channel))
         self.activation = nn.LeakyReLU(negative_slope=self.negative_slope)
-        self.act = nn.Tanh()
+        self.act = nn.ELU()
 
         if not bias:
             self.register_parameter('bias',None)
