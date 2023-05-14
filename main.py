@@ -156,6 +156,7 @@ def main(args):
     loss_fn = torch.nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
     scaler  = GradScaler()
+    compiled_model = torch.compile(model,mode='reduce-overhead')
 
     best_epoch = -1
     best_mrr = 0.0
@@ -165,7 +166,7 @@ def main(args):
     print('****************************')
     print('Start training...')
     for epoch in range(args.max_epochs):
-        model.train()
+        compiled_model.train()
         train_loss = []
         t0 = time()
         for step, batch in enumerate(data_iter['train']):
@@ -177,7 +178,7 @@ def main(args):
                 label.squeeze(),
             )
             with autocast():
-                logits = model(sub, rel, obj)
+                logits = compiled_model(sub, rel, obj)
                 tr_loss = loss_fn(logits, label)
             train_loss.append(tr_loss.item())
             scaler.scale(tr_loss).backward()
@@ -190,13 +191,13 @@ def main(args):
 
         if (epoch + 1) % 20 == 0:
             t1 = time()
-            val_results = evaluate(model, device, data, top_k=5)
+            val_results = evaluate(compiled_model, device, data, top_k=5)
             t2 = time()
 
             if val_results["MRR"] > best_mrr:
                 best_mrr = val_results["MRR"]
                 best_epoch = epoch
-                th.save(model.state_dict(), "{}/baseline_ckpt.pth".format(args.ckpt_dir))
+                th.save(compiled_model.state_dict(), "{}/baseline_ckpt.pth".format(args.ckpt_dir))
                 kill_cnt = 0
                 print("Saving model...")
             else:
@@ -211,9 +212,9 @@ def main(args):
             t1 = time()
             print("In Epoch {}, Train Loss: {:.4f}, Train Time: {:.2f}".format(epoch, train_loss, t1 - t0))
 
-    model.eval()
-    model.load_state_dict(th.load("{}/baseline_ckpt.pth".format(args.ckpt_dir)))
-    get_candidate_voter_list(model, device, data, submit_path, top_k=5)
+    compiled_model.eval()
+    compiled_model.load_state_dict(th.load("{}/baseline_ckpt.pth".format(args.ckpt_dir)))
+    get_candidate_voter_list(compiled_model, device, data, submit_path, top_k=5)
     print("Submission file has been saved to: {}.".format(submit_path))
 
 
