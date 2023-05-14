@@ -156,7 +156,6 @@ def main(args):
     loss_fn = torch.nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
     scaler  = GradScaler()
-    compiled_model = torch.compile(model,mode='reduce-overhead')
 
     best_epoch = -1
     best_mrr = 0.0
@@ -166,7 +165,7 @@ def main(args):
     print('****************************')
     print('Start training...')
     for epoch in range(args.max_epochs):
-        compiled_model.train()
+        model.train()
         train_loss = []
         t0 = time()
         for step, batch in enumerate(data_iter['train']):
@@ -177,8 +176,10 @@ def main(args):
                 triple[:, 2],
                 label.squeeze(),
             )
+            if args.lb_smooth!=0:
+                label = ((1-args.lb_smooth)*label) + (1/label.size(0))
             with autocast():
-                logits = compiled_model(sub, rel, obj)
+                logits = model(sub, rel, obj)
                 tr_loss = loss_fn(logits, label)
             train_loss.append(tr_loss.item())
             scaler.scale(tr_loss).backward()
@@ -191,13 +192,13 @@ def main(args):
 
         if (epoch + 1) % 20 == 0:
             t1 = time()
-            val_results = evaluate(compiled_model, device, data, top_k=5)
+            val_results = evaluate(model, device, data, top_k=5)
             t2 = time()
 
             if val_results["MRR"] > best_mrr:
                 best_mrr = val_results["MRR"]
                 best_epoch = epoch
-                th.save(compiled_model.state_dict(), "{}/baseline_ckpt.pth".format(args.ckpt_dir))
+                th.save(model.state_dict(), "{}/baseline_ckpt.pth".format(args.ckpt_dir))
                 kill_cnt = 0
                 print("Saving model...")
             else:
@@ -212,9 +213,9 @@ def main(args):
             t1 = time()
             print("In Epoch {}, Train Loss: {:.4f}, Train Time: {:.2f}".format(epoch, train_loss, t1 - t0))
 
-    compiled_model.eval()
-    compiled_model.load_state_dict(th.load("{}/baseline_ckpt.pth".format(args.ckpt_dir)))
-    get_candidate_voter_list(compiled_model, device, data, submit_path, top_k=5)
+    model.eval()
+    model.load_state_dict(th.load("{}/baseline_ckpt.pth".format(args.ckpt_dir)))
+    get_candidate_voter_list(model, device, data, submit_path, top_k=5)
     print("Submission file has been saved to: {}.".format(submit_path))
 
 
@@ -245,12 +246,14 @@ if __name__ == "__main__":
     parser.add_argument('--cache', dest='cache', action='store_true', help='Whether to use cache  in the gcn model')
     parser.add_argument('--num_neg', dest='num_neg', default=1,type=int, help='Number of Negative sample')
     parser.add_argument('--feature_method',dest='feature_method',default='sum',type=str,help='Feature combine method')
+    parser.add_argument('--lb_smooth',dest='lb_smooth',default=0,type=int,help='label smooth')
+
     # ConvE specific hyperparameters
     parser.add_argument('--hid_drop2', dest='hid_drop2', default=0.3, type=float, help='ConvE: Hidden dropout')
     parser.add_argument('--feat_drop', dest='feat_drop', default=0.3, type=float, help='ConvE: Feature Dropout')
     parser.add_argument('--k_w', dest='k_w', default=20, type=int, help='ConvE: k_w')
     parser.add_argument('--k_h', dest='k_h', default=10, type=int, help='ConvE: k_h')
-    parser.add_argument('--num_filt', dest='num_filt', default=200, type=int,
+    parser.add_argument('--num_filt', dest='num_filt', default=32, type=int,
                         help='ConvE: Number of filters in convolution')
     parser.add_argument('--ker_sz', dest='ker_sz', default=7, type=int, help='ConvE: Kernel size to use')
 
