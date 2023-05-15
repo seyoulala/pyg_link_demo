@@ -11,6 +11,8 @@ import torch
 import torch.nn as nn
 import  torch.nn.functional as F
 from torch_geometric.nn.inits import glorot
+from torch_geometric.nn import  JumpingKnowledge
+
 
 from helper import *
 from model.compgcn_conv import CompGCNConv
@@ -158,7 +160,8 @@ class RHGATBase(BaseModel):
 
         self.conv1 = RGHATConv(self.p.init_dim,self.p.gcn_dim,heads=self.p.heads,num_rels=num_rel,params=params)
         self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim,self.p.heads,num_rel,params=params) if self.p.gcn_layer == 2 else None
-
+        self.jk  = JumpingKnowledge(mode='cat')
+        self.lin = nn.Linear(-1,self.p.embed_dim)
 
     def forward_base(self, sub, rel, drop1, drop2):
         r = self.init_rel
@@ -203,7 +206,8 @@ class RHGAT_ConvE(RHGATBase):
 
         # flat_sz_h = int(2 * self.p.k_w) - self.p.ker_sz + 1
         flat_sz_w = self.p.k_w - self.p.ker_sz + 1
-        flat_sz_h = int(2*self.p.k_h) - self.p.ker_sz + 1
+        # flat_sz_h = int(2*self.p.k_h) - self.p.ker_sz + 1
+        flat_sz_h = int(2*self.p.embed_dim//self.p.k_w) - self.p.ker_sz + 1
         self.flat_sz = flat_sz_h * flat_sz_w * self.p.num_filt
         self.fc = torch.nn.Linear(self.flat_sz, self.p.embed_dim)
 
@@ -211,7 +215,7 @@ class RHGAT_ConvE(RHGATBase):
         e1_embed = e1_embed.view(-1, 1, self.p.embed_dim)
         rel_embed = rel_embed.view(-1, 1, self.p.embed_dim)
         stack_inp = torch.cat([e1_embed, rel_embed], 1)
-        stack_inp = torch.transpose(stack_inp, 2, 1).reshape((-1, 1, 2 * self.p.k_h, self.p.k_w))
+        stack_inp = torch.transpose(stack_inp, 2, 1).reshape((-1, 1, 2*self.p.embed_dim//self.p.k_w , self.p.k_w))
         return stack_inp
 
     def forward(self, sub, rel, obj=None):
