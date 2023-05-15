@@ -177,7 +177,8 @@ def main(args):
                 label.squeeze(),
             )
             if args.lb_smooth!=0:
-                label = ((1-args.lb_smooth)*label) + (1/label.size(0))
+                # label = ((1-args.lb_smooth)*label) + (1/label.size(0))
+                label = (1.0-args.lb_smooth)*label + (args.lb_smooth/2)
             with autocast():
                 logits = model(sub, rel, obj)
                 tr_loss = loss_fn(logits, label)
