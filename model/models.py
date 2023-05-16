@@ -161,7 +161,7 @@ class RHGATBase(BaseModel):
         self.conv1 = RGHATConv(self.p.init_dim,self.p.gcn_dim,heads=self.p.heads,num_rels=num_rel,params=params)
         self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim,self.p.heads,num_rel,params=params) if self.p.gcn_layer == 2 else None
         self.jk  = JumpingKnowledge(mode='cat')
-        self.lin = nn.Linear(-1,self.p.embed_dim)
+        # self.lin = nn.Linear(-1,self.p.embed_dim)
 
     def forward_base(self, sub, rel, drop1, drop2):
         r = self.init_rel
