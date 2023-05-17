@@ -107,6 +107,7 @@ class RGHATConv(MessagePassing):
         # x_i = th.concat([x_i,r],dim=-1).matmul(self.w1)
         # a_hr = th.concat([x_i,r],dim=-1).matmul(self.w1)
         # [n_edge,heads]
+        del r
         alpha_hr = (x_i*self.p).sum(dim=-1)
         alpha_hr = self.activation(alpha_hr)
         # [n_edge,1]
@@ -123,6 +124,7 @@ class RGHATConv(MessagePassing):
         # x_i = th.concat([x_i,x_j],dim=-1).matmul(self.w2)
         x_i = torch.einsum('ijk,jkl->ijl',torch.concat([x_i,x_j],dim=-1),self.w2)
         # a_hr = th.concat([a_hr,x_j],dim=-1).matmul(self.w2)
+        del x_j
         alpha_bht = (x_i*self.q).sum(dim=-1)
         # alpha_bht = (a_hr*self.q).sum(dim=-1)
         alpha_bht = self.activation(alpha_bht)
