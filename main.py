@@ -132,6 +132,7 @@ def main(args):
     data_iter = data.data_iter
     args.num_rel = data.num_rel
     args.num_ent = data.num_ent
+    args.num_rel_p = data.num_rel_p
     print(args)
     data.edge_index = data.edge_index.to(device)
     data.edge_type  = data.edge_type.to(device)

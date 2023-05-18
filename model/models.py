@@ -166,8 +166,8 @@ class RHGATBase(BaseModel):
             self.init_rel_p = get_param((2 * self.p.num_rel_p, self.p.init_dim))
 
         self.init_rel = get_param((num_rel * 2, self.p.init_dim))
-
-        self.conv1 = RGHATConv(self.p.init_dim, self.p.gcn_dim, heads=self.p.heads, num_rels=num_rel, params=params)
+        in_channel = self.p.init_dim*2 if self.add_parent_rel else self.p.init_dim
+        self.conv1 = RGHATConv(in_channel, self.p.gcn_dim, heads=self.p.heads, num_rels=num_rel, params=params)
         self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim, self.p.heads, num_rel,
                                params=params) if self.p.gcn_layer == 2 else None
         self.jk = JumpingKnowledge(mode='cat')
