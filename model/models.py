@@ -209,7 +209,7 @@ class RHGAT_ConvE(RHGATBase):
         # flat_sz_h = int(2*self.p.k_h) - self.p.ker_sz + 1
         flat_sz_h = int(2*self.p.embed_dim//self.p.k_w) - self.p.ker_sz + 1
         self.flat_sz = flat_sz_h * flat_sz_w * self.p.num_filt
-        self.fc = torch.nn.Linear(self.flat_sz, self.p.embed_dim)
+        # self.fc = torch.nn.Linear(self.flat_sz, self.p.embed_dim)
 
     def concat(self, e1_embed, rel_embed):
         e1_embed = e1_embed.view(-1, 1, self.p.embed_dim)
@@ -226,11 +226,13 @@ class RHGAT_ConvE(RHGATBase):
         x = self.bn1(x)
         x = F.relu(x)
         x = self.feature_drop(x)
-        x = x.view(-1, self.flat_sz)
-        x = self.fc(x)
-        x = self.hidden_drop2(x)
-        x = self.bn2(x)
-        x = F.relu(x)
+        # x = x.view(-1, self.flat_sz)
+        # x = self.fc(x)
+        # x = self.hidden_drop2(x)
+        # x = self.bn2(x)
+        # x = F.relu(x)
+        #
+        x = F.adaptive_avg_pool2d(x,(1,1))
 
         if obj is None:
             x = torch.mm(x, all_ent.transpose(1, 0))

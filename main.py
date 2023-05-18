@@ -154,8 +154,8 @@ def main(args):
 
     model = model.to(device)
     loss_fn = torch.nn.BCEWithLogitsLoss()
-    # optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
-    optimizer = optim.AdamW(model.parameters(),lr=args.lr,weight_decay=args.l2)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
+    # optimizer = optim.AdamW(model.parameters(),lr=args.lr,weight_decay=args.l2)
     scaler  = GradScaler()
     best_epoch = -1
     best_mrr = 0.0
