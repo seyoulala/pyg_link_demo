@@ -250,6 +250,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_neg', dest='num_neg', default=1,type=int, help='Number of Negative sample')
     parser.add_argument('--feature_method',dest='feature_method',default='sum',type=str,help='Feature combine method')
     parser.add_argument('--lb_smooth',dest='lb_smooth',default=0,type=float,help='label smooth')
+    parser.add_argument('--add_parent_rel', dest='add_parent_rel', action='store_true',help='Whether add parent relaiton')
 
     # ConvE specific hyperparameters
     parser.add_argument('--hid_drop2', dest='hid_drop2', default=0.3, type=float, help='ConvE: Hidden dropout')
