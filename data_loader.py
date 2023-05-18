@@ -111,6 +111,23 @@ class Data(object):
         self.num_ent = len(self.ent2id)
         self.num_rel = len(self.rel2id) // 2
 
+        # 添加父场景的信息
+        self.partner_map = {}
+        for rows in event_info.itertuples():
+            self.partner_map[rows.event_id] = rows.parent_event_id
+            self.partner_map[rows.event_id+'_reverse'] = rows.parent_event_id +'_reverse'
+
+        parent_set = OrderedSet()
+        parent_set.update(event_info['parent_event_id'].tolist())
+        print('Number of parent events: {}'.format(len(parent_set)))
+
+        self.parrel2id = {rel:idx for idx,rel in enumerate(parent_set)}
+        self.parrel2id.update({rel + "_reverse":idx + len(self.parrel2id) for idx,rel in enumerate(parent_set)})
+        self.id2parrel = {idx:rel for rel,idx in self.parrel2id.items()}
+
+        self.num_rel_p = len(self.parrel2id)//2
+
+
         # 添加用户相关的特征,user_age,user_level,user_sex
         age_set = set(user_info['age_level'].tolist())
         gender_set = set(user_info['gender_id'].tolist())
@@ -131,8 +148,6 @@ class Data(object):
 
         del self.ent_fe, self.age2id, self.gender2id, self.level2id
         gc.collect()
-
-
 
         self.data = ddict(list)
         self.sr2o = dict()
@@ -222,6 +237,8 @@ class Data(object):
         self.edge_index = torch.stack([torch.LongTensor(src), torch.LongTensor(dst)], dim=0)
         self.edge_type = torch.LongTensor(rels)
         self.ent_feid = torch.stack(self.ent_feid,dim=0)
+        # 父关系
+        self.edge_type_parent = torch.LongTensor([self.parrel2id[self.partner_map[self.id2rel[idx]]]   for idx in rels])
         print("Number of user fe: {}".format(self.ent_feid.shape))
         # identify in and out edges
         def get_train_data_loader(split, batch_size, shuffle=True):

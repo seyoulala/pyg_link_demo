@@ -38,7 +38,10 @@ class RGHATConv(MessagePassing):
         self.bn1 = nn.BatchNorm1d(self.heads)
         self.ent_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
         # k rel weight aspect weight
-        self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
+        if params.add_parent_rel:
+            self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel//2,bias=False)
+        else:
+            self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
         self.attn_w = nn.Parameter(th.Tensor(1,self.heads,self.out_channel))
 
         self.w1 = nn.Parameter(th.Tensor(self.out_channel*2,self.out_channel))
@@ -71,10 +74,11 @@ class RGHATConv(MessagePassing):
         glorot(self.q)
         zeros(self.bias)
 
-    def forward(self,x,edge_index,edge_type,rel_emb=None,size=None):
+    def forward(self,x,edge_index,edge_type,edge_type_p=None,rel_emb=None,size=None):
         x = self.ent_wk(x).view(-1,self.heads,self.out_channel)
+
         rel_emb = self.rel_wk(rel_emb).view(-1,self.heads,self.out_channel)
-        out = self.propagate(edge_index=edge_index,x=x,edge_type=edge_type,rel_emb=rel_emb,size=size)
+        out = self.propagate(edge_index=edge_index,x=x,edge_type=edge_type,edge_type_p=edge_type_p,rel_emb=rel_emb,size=size)
 
         if self.combine =='add':
             out = th.matmul(out+x,self.w3)
@@ -100,8 +104,11 @@ class RGHATConv(MessagePassing):
             out = out.mean(dim=1)
         return out,rel_emb.mean(dim=1)
 
-    def message(self,x_j,x_i,edge_index_i,edge_type,rel_emb) -> Tensor:
-        r = th.index_select(rel_emb,0,edge_type)
+    def message(self,x_j,x_i,edge_index_i,edge_type,edge_type_p,rel_emb) -> Tensor:
+        if isinstance(rel_emb,tuple):
+            r = torch.concat([th.index_select(rel_emb[0],0,edge_type),th.index_select(rel_emb[1],0,edge_type_p)],dim=1)
+        else:
+            r = th.index_select(rel_emb,0,edge_type)
         # [n_edge,heads,output_channel]
         # x_i = torch.einsum('ijk,jkl->ijl',torch.concat([x_i,r],dim=-1),self.w1)
         x_i = th.concat([x_i,r],dim=-1).matmul(self.w1)

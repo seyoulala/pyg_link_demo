@@ -9,16 +9,15 @@
 '''
 import torch
 import torch.nn as nn
-import  torch.nn.functional as F
+import torch.nn.functional as F
 from torch_geometric.nn.inits import glorot
-from torch_geometric.nn import  JumpingKnowledge
-
+from torch_geometric.nn import JumpingKnowledge
 
 from helper import *
 from model.compgcn_conv import CompGCNConv
 from model.compgcn_conv_basis import CompGCNConvBasis
 from model.rgat_conv import RGATConv
-from model.rghat_conv import  RGHATConv
+from model.rghat_conv import RGHATConv
 
 
 class BaseModel(torch.nn.Module):
@@ -68,14 +67,14 @@ class RGATBase(BaseModel):
         self.x1 = self.gender_embed(self.ent_feature[:, 0].view(-1))
         self.x2 = self.age_embed(self.ent_feature[:, 1].view(-1))
         self.x3 = self.level_embed(self.ent_feature[:, 2].view(-1))
-        if self.p.feature_method =='concat':
+        if self.p.feature_method == 'concat':
             self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=1).to(self.device)
-        elif self.p.feature_method =='sum':
+        elif self.p.feature_method == 'sum':
             self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
-            self.init_embed = torch.sum(self.init_embed,dim=0)
-        elif self.p.feature_method =='mean':
+            self.init_embed = torch.sum(self.init_embed, dim=0)
+        elif self.p.feature_method == 'mean':
             self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=0).to(self.device)
-            self.init_embed = torch.mean(self.init_embed,dim=0)
+            self.init_embed = torch.mean(self.init_embed, dim=0)
 
         x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, rel_emb=r)
         x = drop1(x)
@@ -149,20 +148,28 @@ class RHGATBase(BaseModel):
         # 需要加上节点的额外的embedding特
         # id embedding
         self.device = self.edge_index.device
+        self.add_parent_rel = self.p.add_parent_rel
 
         self.id_embed = get_param((self.p.num_ent, self.p.init_dim))
         self.gender_embed = nn.Embedding(3, self.p.init_dim)
         self.age_embed = nn.Embedding(9, self.p.init_dim)
         self.level_embed = nn.Embedding(11, self.p.init_dim)
 
-        if self.p.feature_method == 'concat' :
-            self.p.init_dim = self.p.init_dim * 4
+        if self.p.feature_method == 'concat':
+            if self.add_parent_rel:
+                self.p.init_dim = self.p.init_dim * 2
+            else:
+                self.p.init_dim = self.p.init_dim * 4
+
+        if self.add_parent_rel:
+            self.init_rel_p = get_param(2 * self.p.num_rel_p, self.p.init_dim)
+
         self.init_rel = get_param((num_rel * 2, self.p.init_dim))
 
-        self.conv1 = RGHATConv(self.p.init_dim,self.p.gcn_dim,heads=self.p.heads,num_rels=num_rel,params=params)
-        self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim,self.p.heads,num_rel,params=params) if self.p.gcn_layer == 2 else None
-        self.jk  = JumpingKnowledge(mode='cat')
-        # self.lin = nn.Linear(-1,self.p.embed_dim)
+        self.conv1 = RGHATConv(self.p.init_dim, self.p.gcn_dim, heads=self.p.heads, num_rels=num_rel, params=params)
+        self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim, self.p.heads, num_rel,
+                               params=params) if self.p.gcn_layer == 2 else None
+        self.jk = JumpingKnowledge(mode='cat')
 
     def forward_base(self, sub, rel, drop1, drop2):
         r = self.init_rel
@@ -173,10 +180,10 @@ class RHGATBase(BaseModel):
         if self.p.feature_method == 'concat':
             self.init_embed = torch.cat([self.id_embed, self.x1, self.x2, self.x3], dim=1).to(self.device)
         elif self.p.feature_method == 'sum':
-            self.init_embed = self.id_embed+self.x1+self.x2+self.x3
+            self.init_embed = self.id_embed + self.x1 + self.x2 + self.x3
             self.init_embed = self.init_embed.to(self.device)
         elif self.p.feature_method == 'mean':
-            self.init_embed = (self.id_embed+self.x1+self.x2+self.x3)/4
+            self.init_embed = (self.id_embed + self.x1 + self.x2 + self.x3) / 4
             self.init_embed = self.init_embed.to(self.device)
 
         x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, rel_emb=r)
@@ -190,10 +197,9 @@ class RHGATBase(BaseModel):
         return sub_emb, rel_emb, x
 
 
-
 class RHGAT_ConvE(RHGATBase):
-    def __init__(self,edge_index,edge_type,ent_feature,params=None):
-        super(RHGAT_ConvE, self).__init__(edge_index,edge_type,ent_feature,params.num_rel,params)
+    def __init__(self, edge_index, edge_type, ent_feature, params=None):
+        super(RHGAT_ConvE, self).__init__(edge_index, edge_type, ent_feature, params.num_rel, params)
 
         self.bn0 = torch.nn.BatchNorm2d(1)
         self.bn1 = torch.nn.BatchNorm2d(self.p.num_filt)
@@ -208,7 +214,7 @@ class RHGAT_ConvE(RHGATBase):
         # flat_sz_h = int(2 * self.p.k_w) - self.p.ker_sz + 1
         flat_sz_w = self.p.k_w - self.p.ker_sz + 1
         # flat_sz_h = int(2*self.p.k_h) - self.p.ker_sz + 1
-        flat_sz_h = int(2*self.p.embed_dim//self.p.k_w) - self.p.ker_sz + 1
+        flat_sz_h = int(2 * self.p.embed_dim // self.p.k_w) - self.p.ker_sz + 1
         self.flat_sz = flat_sz_h * flat_sz_w * self.p.num_filt
         self.fc = torch.nn.Linear(self.flat_sz, self.p.embed_dim)
 
@@ -216,7 +222,7 @@ class RHGAT_ConvE(RHGATBase):
         e1_embed = e1_embed.view(-1, 1, self.p.embed_dim)
         rel_embed = rel_embed.view(-1, 1, self.p.embed_dim)
         stack_inp = torch.cat([e1_embed, rel_embed], 1)
-        stack_inp = torch.transpose(stack_inp, 2, 1).reshape((-1, 1, 2*self.p.embed_dim//self.p.k_w , self.p.k_w))
+        stack_inp = torch.transpose(stack_inp, 2, 1).reshape((-1, 1, 2 * self.p.embed_dim // self.p.k_w, self.p.k_w))
         return stack_inp
 
     def forward(self, sub, rel, obj=None):
@@ -246,7 +252,7 @@ class RHGAT_ConvE(RHGATBase):
 
 
 class RHGAT_DistMult(RHGATBase):
-    def __init__(self, edge_index, edge_type, ent_feature, params=None):
+    def __init__(self, edge_index, edge_type, ent_feature, edge_type_p, params=None):
         super(self.__class__, self).__init__(edge_index, edge_type, ent_feature, params.num_rel, params)
         self.drop = torch.nn.Dropout(self.p.hid_drop)
 
@@ -267,7 +273,6 @@ class RHGAT_DistMult(RHGATBase):
         # score = torch.sigmoid(x)
         # return score
         return x
-
 
 
 class CompGCNBase(BaseModel):
@@ -293,7 +298,7 @@ class CompGCNBase(BaseModel):
 
         else:
             if self.p.score_func == 'transe':
-                self.init_rel = get_param((num_rel, self.p.init_dim ))
+                self.init_rel = get_param((num_rel, self.p.init_dim))
             else:
                 self.init_rel = get_param((num_rel * 2, self.p.init_dim))
 
@@ -346,7 +351,8 @@ class CompGCN_TransE(CompGCNBase):
         # score = torch.sigmoid(x)
 
         # return score
-        return  x
+        return x
+
 
 class CompGCN_DistMult(CompGCNBase):
     def __init__(self, edge_index, edge_type, ent_feature, params=None):
@@ -381,6 +387,7 @@ class CompGCN_DistMult(CompGCNBase):
         # score = torch.sigmoid(x)
         # return score
         return x
+
 
 class CompGCN_ConvE(CompGCNBase):
     def __init__(self, edge_index, edge_type, ent_feature, params=None):
