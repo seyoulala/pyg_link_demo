@@ -39,7 +39,7 @@ class RGHATConv(MessagePassing):
         self.ent_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
         # k rel weight aspect weight
         if params.add_parent_rel:
-            self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel//2,bias=False)
+            self.rel_wk = nn.Linear(self.in_channel//2,self.heads*self.out_channel//2,bias=False)
         else:
             self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
         self.attn_w = nn.Parameter(th.Tensor(1,self.heads,self.out_channel))
@@ -106,6 +106,8 @@ class RGHATConv(MessagePassing):
             # out = 1/2*(self.act(self.bn(th.einsum('ijk,jkl->ijl',out*x,self.w3)))+
             #            self.act(self.bn(th.einsum('ijk,jkl->ijl',out+x,self.w4))))
             out = out.mean(dim=1)
+        if isinstance(rel_emb,tuple):
+            rel_emb = torch.cat(rel_emb,dim=-1)
         return out,rel_emb.mean(dim=1)
 
     def message(self,x_j,x_i,edge_index_i,edge_type,edge_type_p,rel_emb) -> Tensor:
