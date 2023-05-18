@@ -76,8 +76,12 @@ class RGHATConv(MessagePassing):
 
     def forward(self,x,edge_index,edge_type,edge_type_p=None,rel_emb=None,size=None):
         x = self.ent_wk(x).view(-1,self.heads,self.out_channel)
-
-        rel_emb = self.rel_wk(rel_emb).view(-1,self.heads,self.out_channel)
+        if edge_type_p is not None:
+            r1 = self.rel_wk(rel_emb[0]).view(-1,self.heads,self.out_channel//2)
+            r2 = self.rel_wk(rel_emb[1]).view(-1,self.heads,self.out_channel//2)
+            rel_emb = (r1,r2)
+        else:
+            rel_emb = self.rel_wk(rel_emb).view(-1,self.heads,self.out_channel)
         out = self.propagate(edge_index=edge_index,x=x,edge_type=edge_type,edge_type_p=edge_type_p,rel_emb=rel_emb,size=size)
 
         if self.combine =='add':
@@ -106,7 +110,7 @@ class RGHATConv(MessagePassing):
 
     def message(self,x_j,x_i,edge_index_i,edge_type,edge_type_p,rel_emb) -> Tensor:
         if isinstance(rel_emb,tuple):
-            r = torch.concat([th.index_select(rel_emb[0],0,edge_type),th.index_select(rel_emb[1],0,edge_type_p)],dim=1)
+            r = torch.concat([th.index_select(rel_emb[0],0,edge_type),th.index_select(rel_emb[1],0,edge_type_p)],dim=-1)
         else:
             r = th.index_select(rel_emb,0,edge_type)
         # [n_edge,heads,output_channel]
@@ -114,7 +118,6 @@ class RGHATConv(MessagePassing):
         x_i = th.concat([x_i,r],dim=-1).matmul(self.w1)
         # a_hr = th.concat([x_i,r],dim=-1).matmul(self.w1)
         # [n_edge,heads]
-        del r
         alpha_hr = (x_i*self.p).sum(dim=-1)
         alpha_hr = self.activation(alpha_hr)
         # [n_edge,1]
@@ -131,7 +134,6 @@ class RGHATConv(MessagePassing):
         x_i = th.concat([x_i,x_j],dim=-1).matmul(self.w2)
         # x_i = torch.einsum('ijk,jkl->ijl',torch.concat([x_i,x_j],dim=-1),self.w2)
         # a_hr = th.concat([a_hr,x_j],dim=-1).matmul(self.w2)
-        del x_j
         alpha_bht = (x_i*self.q).sum(dim=-1)
         # alpha_bht = (a_hr*self.q).sum(dim=-1)
         alpha_bht = self.activation(alpha_bht)

@@ -138,11 +138,12 @@ class RGAT_LINK(RGATBase):
 
 
 class RHGATBase(BaseModel):
-    def __init__(self, edge_index, edge_type, ent_feature, num_rel, params=None):
+    def __init__(self, edge_index, edge_type, edge_type_p,ent_feature,num_rel, params=None):
         super(RHGATBase, self).__init__(params)
 
         self.edge_index = edge_index
         self.edge_type = edge_type
+        self.edge_type_p = edge_type_p
         self.ent_feature = ent_feature
         self.p.gcn_dim = self.p.embed_dim if self.p.gcn_layer == 1 else self.p.gcn_dim
         # 需要加上节点的额外的embedding特
@@ -162,7 +163,7 @@ class RHGATBase(BaseModel):
                 self.p.init_dim = self.p.init_dim * 4
 
         if self.add_parent_rel:
-            self.init_rel_p = get_param(2 * self.p.num_rel_p, self.p.init_dim)
+            self.init_rel_p = get_param((2 * self.p.num_rel_p, self.p.init_dim))
 
         self.init_rel = get_param((num_rel * 2, self.p.init_dim))
 
@@ -172,7 +173,10 @@ class RHGATBase(BaseModel):
         self.jk = JumpingKnowledge(mode='cat')
 
     def forward_base(self, sub, rel, drop1, drop2):
-        r = self.init_rel
+        if self.add_parent_rel:
+            r = (self.init_rel,self.init_rel_p)
+        else:
+            r = self.init_rel
         # x [N_ent,k,output_channel//k]
         self.x1 = self.gender_embed(self.ent_feature[:, 0].view(-1))
         self.x2 = self.age_embed(self.ent_feature[:, 1].view(-1))
@@ -186,9 +190,9 @@ class RHGATBase(BaseModel):
             self.init_embed = (self.id_embed + self.x1 + self.x2 + self.x3) / 4
             self.init_embed = self.init_embed.to(self.device)
 
-        x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, rel_emb=r)
+        x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type,self.edge_type_p, rel_emb=r)
         x = drop1(x)
-        x, r = self.conv2(x, self.edge_index, self.edge_type, rel_emb=r) if self.p.gcn_layer == 2 else (x, r)
+        x, r = self.conv2(x, self.edge_index, self.edge_type,self.edge_type_p,rel_emb=r) if self.p.gcn_layer == 2 else (x, r)
         x = drop2(x) if self.p.gcn_layer == 2 else x
         # [batch_ent,k,output_channel//k]
         sub_emb = torch.index_select(x, 0, sub)
@@ -252,8 +256,8 @@ class RHGAT_ConvE(RHGATBase):
 
 
 class RHGAT_DistMult(RHGATBase):
-    def __init__(self, edge_index, edge_type, ent_feature, edge_type_p, params=None):
-        super(self.__class__, self).__init__(edge_index, edge_type, ent_feature, params.num_rel, params)
+    def __init__(self, edge_index, edge_type, edge_type_p,ent_feature, params=None):
+        super(self.__class__, self).__init__(edge_index, edge_type,edge_type_p, ent_feature, params.num_rel, params)
         self.drop = torch.nn.Dropout(self.p.hid_drop)
 
     def forward(self, sub, rel, obj=None):

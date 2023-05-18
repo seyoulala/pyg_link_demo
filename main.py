@@ -136,6 +136,7 @@ def main(args):
     data.edge_index = data.edge_index.to(device)
     data.edge_type  = data.edge_type.to(device)
     data.ent_feid  = data.ent_feid.to(device)
+    data.edge_type_parent = data.edge_type_parent.to(device)
     model = None
 
     if args.model_name =='compgcn':
@@ -150,7 +151,7 @@ def main(args):
         if args.score_func =='conve':
             model = RHGAT_ConvE(data.edge_index,data.edge_type,data.ent_feid,args)
         elif args.score_func =='dist':
-            model = RHGAT_DistMult(data.edge_index,data.edge_type,data.ent_feid,args)
+            model = RHGAT_DistMult(data.edge_index,data.edge_type,data.edge_type_parent,data.ent_feid,args)
 
     model = model.to(device)
     loss_fn = torch.nn.BCEWithLogitsLoss()
