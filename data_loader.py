@@ -30,13 +30,13 @@ class TrainDataset(Dataset):
 
     def __getitem__(self, idx):
         ele = self.triples[idx]
-        src, rel, obj = ele
-        triples = [torch.LongTensor([src, rel, obj])]
+        src, rel,relp, obj = ele
+        triples = [torch.LongTensor([src, rel,relp, obj])]
         labels = [torch.FloatTensor([1.0])]
         while True:
             neg_obj = random.randint(0, self.num_ent - 1)
             if neg_obj not in self.sr2o[(src, rel)]:
-                triples.append(torch.LongTensor([src, rel, neg_obj]))
+                triples.append(torch.LongTensor([src, rel,relp, neg_obj]))
                 labels.append(torch.FloatTensor([0.0]))
             if len(triples) > self.num_neg:
                 break
@@ -59,8 +59,8 @@ class TestDataset(Dataset):
     def __init__(self, sr2o, triple2idx=None):
         self.sr2o = sr2o
         self.triples, self.ids = [], []
-        for (s, r), o_list in self.sr2o.items():
-            self.triples.append([s, r, -1])
+        for (s, r,r1), o_list in self.sr2o.items():
+            self.triples.append([s, r,r1, -1])
             if triple2idx is None:
                 self.ids.append(0)
             else:
@@ -164,13 +164,15 @@ class Data(object):
         records = df.to_dict('records')
         for line in records:
             sub, rel, obj = line['inviter_id'], line['event_id'], line['voter_id']
+            relp = self.partner_map[rel]
             # 三元组转换
-            sub_id, rel_id, obj_id = (
+            sub_id, rel_id,relp_id ,obj_id = (
                 self.ent2id[sub],
                 self.rel2id[rel],
+                self.parrel2id[relp],
                 self.ent2id[obj],
             )
-            self.data['train'].append((sub_id, rel_id, obj_id))
+            self.data['train'].append((sub_id, rel_id,relp_id,obj_id))
             self.sr2o['train'][(sub_id, rel_id)].add(obj_id)
             self.sr2o['train'][(obj_id, rel_id + self.num_rel)].add(sub_id)  # 添加反向边
             src.append(sub_id)
@@ -187,18 +189,20 @@ class Data(object):
         random.shuffle(records)
         for line in records:
             sub, rel, obj = line['inviter_id'], line['event_id'], line['voter_id']
-            sub_id, rel_id, obj_id = (
+            relp = self.partner_map[rel]
+            sub_id, rel_id, relp_id,obj_id = (
                 self.ent2id[sub],
                 self.rel2id[rel],
+                self.parrel2id[relp],
                 self.ent2id[obj],
             )
             # 目标场景的相关的三元组，每种关系都保留200条样本作为验证集，其余加入到训练集中进行训练
             if few_shot_valid_cnt[rel] < K:
                 self.sr2o['valid'][(sub_id, rel_id)].add(obj_id)
-                self.data['valid'].append([sub_id, rel_id, obj_id])
+                self.data['valid'].append([sub_id, rel_id,relp_id, obj_id])
                 few_shot_valid_cnt[rel] += 1
             else:
-                self.data['train'].append((sub_id, rel_id, obj_id))
+                self.data['train'].append((sub_id, rel_id,relp_id, obj_id))
                 self.sr2o['train'][(sub_id, rel_id)].add(obj_id)
                 self.sr2o['train'][(obj_id, rel_id + self.num_rel)].add(sub_id)
                 src.append(sub_id)
@@ -215,8 +219,9 @@ class Data(object):
         for line in records:
             triple_id = int(line['triple_id'])
             sub, rel = line['inviter_id'], line['event_id']
-            sub_id, rel_id = self.ent2id[sub], self.rel2id[rel]
-            self.sr2o['test'][(sub_id, rel_id)] = set()
+            relp = self.partner_map[rel]
+            sub_id, rel_id ,relp_id= self.ent2id[sub], self.rel2id[rel],self.parrel2id[relp]
+            self.sr2o['test'][(sub_id, rel_id,relp_id)] = set()
             # index
             self.triple2idx[(sub_id, rel_id)] = triple_id
 

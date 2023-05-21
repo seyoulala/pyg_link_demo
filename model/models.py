@@ -170,9 +170,8 @@ class RHGATBase(BaseModel):
         self.conv1 = RGHATConv(in_channel, self.p.gcn_dim, heads=self.p.heads, num_rels=num_rel, params=params)
         self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim, self.p.heads, num_rel,
                                params=params) if self.p.gcn_layer == 2 else None
-        self.jk = JumpingKnowledge(mode='cat')
 
-    def forward_base(self, sub, rel, drop1, drop2):
+    def forward_base(self, sub, rel,relp, drop1, drop2):
         if self.add_parent_rel:
             r = (self.init_rel,self.init_rel_p)
         else:
@@ -197,8 +196,12 @@ class RHGATBase(BaseModel):
         # [batch_ent,k,output_channel//k]
         sub_emb = torch.index_select(x, 0, sub)
         # [batch_ent,output_channel]
-        rel_emb = torch.index_select(r, 0, rel)
-        return sub_emb, rel_emb, x
+        if isinstance(r,tuple):
+            r1 = torch.index_select(r[0], 0, rel)
+            r2 = torch.index_select(r[1],0,relp)
+            r = torch.concat([r1,r2],dim=1)
+        # rel_emb = torch.index_select(r, 0, rel)
+        return sub_emb, r, x
 
 
 class RHGAT_ConvE(RHGATBase):
