@@ -30,13 +30,13 @@ class TrainDataset(Dataset):
 
     def __getitem__(self, idx):
         ele = self.triples[idx]
-        src, rel,relp, obj = ele
-        triples = [torch.LongTensor([src, rel,relp, obj])]
+        src, rel, relp, obj = ele
+        triples = [torch.LongTensor([src, rel, relp, obj])]
         labels = [torch.FloatTensor([1.0])]
         while True:
             neg_obj = random.randint(0, self.num_ent - 1)
             if neg_obj not in self.sr2o[(src, rel)]:
-                triples.append(torch.LongTensor([src, rel,relp, neg_obj]))
+                triples.append(torch.LongTensor([src, rel, relp, neg_obj]))
                 labels.append(torch.FloatTensor([0.0]))
             if len(triples) > self.num_neg:
                 break
@@ -59,8 +59,8 @@ class TestDataset(Dataset):
     def __init__(self, sr2o, triple2idx=None):
         self.sr2o = sr2o
         self.triples, self.ids = [], []
-        for (s, r,r1), o_list in self.sr2o.items():
-            self.triples.append([s, r,r1, -1])
+        for (s, r, r1), o_list in self.sr2o.items():
+            self.triples.append([s, r, r1, -1])
             if triple2idx is None:
                 self.ids.append(0)
             else:
@@ -115,18 +115,17 @@ class Data(object):
         self.partner_map = {}
         for rows in event_info.itertuples():
             self.partner_map[rows.event_id] = rows.parent_event_id
-            self.partner_map[rows.event_id+'_reverse'] = rows.parent_event_id +'_reverse'
+            self.partner_map[rows.event_id + '_reverse'] = rows.parent_event_id + '_reverse'
 
         parent_set = OrderedSet()
         parent_set.update(event_info['parent_event_id'].tolist())
         print('Number of parent events: {}'.format(len(parent_set)))
 
-        self.parrel2id = {rel:idx for idx,rel in enumerate(parent_set)}
-        self.parrel2id.update({rel + "_reverse":idx + len(self.parrel2id) for idx,rel in enumerate(parent_set)})
-        self.id2parrel = {idx:rel for rel,idx in self.parrel2id.items()}
+        self.parrel2id = {rel: idx for idx, rel in enumerate(parent_set)}
+        self.parrel2id.update({rel + "_reverse": idx + len(self.parrel2id) for idx, rel in enumerate(parent_set)})
+        self.id2parrel = {idx: rel for rel, idx in self.parrel2id.items()}
 
-        self.num_rel_p = len(self.parrel2id)//2
-
+        self.num_rel_p = len(self.parrel2id) // 2
 
         # 添加用户相关的特征,user_age,user_level,user_sex
         age_set = set(user_info['age_level'].tolist())
@@ -134,17 +133,17 @@ class Data(object):
         level_set = set(user_info['user_level'].tolist())
 
         self.age2id = {age: idx for idx, age in enumerate(age_set)}
-        self.gender2id = {gender: idx for idx,gender in enumerate(gender_set)}
-        self.level2id = {level: idx for idx,level in enumerate(level_set)}
+        self.gender2id = {gender: idx for idx, gender in enumerate(gender_set)}
+        self.level2id = {level: idx for idx, level in enumerate(level_set)}
 
         self.ent_fe = {}
         for rows in user_info.itertuples():
-            self.ent_fe[self.ent2id[rows.user_id]] = torch.LongTensor([self.gender2id[rows.gender_id], self.age2id[rows.age_level],
-                                                         self.level2id[rows.user_level]])
+            self.ent_fe[self.ent2id[rows.user_id]] = torch.LongTensor(
+                [self.gender2id[rows.gender_id], self.age2id[rows.age_level],
+                 self.level2id[rows.user_level]])
         self.ent_feid = []
         for entid in range(self.num_ent):
             self.ent_feid.append(self.ent_fe[entid])
-
 
         del self.ent_fe, self.age2id, self.gender2id, self.level2id
         gc.collect()
@@ -166,15 +165,15 @@ class Data(object):
             sub, rel, obj = line['inviter_id'], line['event_id'], line['voter_id']
             relp = self.partner_map[rel]
             # 三元组转换
-            sub_id, rel_id,relp_id ,obj_id = (
+            sub_id, rel_id, relp_id, obj_id = (
                 self.ent2id[sub],
                 self.rel2id[rel],
                 self.parrel2id[relp],
                 self.ent2id[obj],
             )
-            self.data['train'].append((sub_id, rel_id,relp_id,obj_id))
-            self.sr2o['train'][(sub_id, rel_id)].add(obj_id)
-            self.sr2o['train'][(obj_id, rel_id + self.num_rel)].add(sub_id)  # 添加反向边
+            self.data['train'].append((sub_id, rel_id, relp_id, obj_id))
+            self.sr2o['train'][(sub_id, rel_id, relp_id)].add(obj_id)
+            self.sr2o['train'][(obj_id, rel_id + self.num_rel, relp_id + self.num_rel_p)].add(sub_id)  # 添加反向边
             src.append(sub_id)
             dst.append(obj_id)
             rels.append(rel_id)
@@ -190,7 +189,7 @@ class Data(object):
         for line in records:
             sub, rel, obj = line['inviter_id'], line['event_id'], line['voter_id']
             relp = self.partner_map[rel]
-            sub_id, rel_id, relp_id,obj_id = (
+            sub_id, rel_id, relp_id, obj_id = (
                 self.ent2id[sub],
                 self.rel2id[rel],
                 self.parrel2id[relp],
@@ -198,13 +197,13 @@ class Data(object):
             )
             # 目标场景的相关的三元组，每种关系都保留200条样本作为验证集，其余加入到训练集中进行训练
             if few_shot_valid_cnt[rel] < K:
-                self.sr2o['valid'][(sub_id, rel_id)].add(obj_id)
-                self.data['valid'].append([sub_id, rel_id,relp_id, obj_id])
+                self.sr2o['valid'][(sub_id, rel_id, relp_id)].add(obj_id)
+                self.data['valid'].append([sub_id, rel_id, relp_id, obj_id])
                 few_shot_valid_cnt[rel] += 1
             else:
-                self.data['train'].append((sub_id, rel_id,relp_id, obj_id))
-                self.sr2o['train'][(sub_id, rel_id)].add(obj_id)
-                self.sr2o['train'][(obj_id, rel_id + self.num_rel)].add(sub_id)
+                self.data['train'].append((sub_id, rel_id, relp_id, obj_id))
+                self.sr2o['train'][(sub_id, rel_id, relp_id)].add(obj_id)
+                self.sr2o['train'][(obj_id, rel_id + self.num_rel, relp_id + self.num_rel_p)].add(sub_id)
                 src.append(sub_id)
                 dst.append(obj_id)
                 rels.append(rel_id)
@@ -220,8 +219,8 @@ class Data(object):
             triple_id = int(line['triple_id'])
             sub, rel = line['inviter_id'], line['event_id']
             relp = self.partner_map[rel]
-            sub_id, rel_id ,relp_id= self.ent2id[sub], self.rel2id[rel],self.parrel2id[relp]
-            self.sr2o['test'][(sub_id, rel_id,relp_id)] = set()
+            sub_id, rel_id, relp_id = self.ent2id[sub], self.rel2id[rel], self.parrel2id[relp]
+            self.sr2o['test'][(sub_id, rel_id, relp_id)] = set()
             # index
             self.triple2idx[(sub_id, rel_id)] = triple_id
 
@@ -241,10 +240,11 @@ class Data(object):
 
         self.edge_index = torch.stack([torch.LongTensor(src), torch.LongTensor(dst)], dim=0)
         self.edge_type = torch.LongTensor(rels)
-        self.ent_feid = torch.stack(self.ent_feid,dim=0)
+        self.ent_feid = torch.stack(self.ent_feid, dim=0)
         # 父关系
-        self.edge_type_parent = torch.LongTensor([self.parrel2id[self.partner_map[self.id2rel[idx]]]   for idx in rels])
+        self.edge_type_parent = torch.LongTensor([self.parrel2id[self.partner_map[self.id2rel[idx]]] for idx in rels])
         print("Number of user fe: {}".format(self.ent_feid.shape))
+
         # identify in and out edges
         def get_train_data_loader(split, batch_size, shuffle=True):
             return DataLoader(
