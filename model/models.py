@@ -263,9 +263,9 @@ class RHGAT_DistMult(RHGATBase):
         super(self.__class__, self).__init__(edge_index, edge_type,edge_type_p, ent_feature, params.num_rel, params)
         self.drop = torch.nn.Dropout(self.p.hid_drop)
 
-    def forward(self, sub, rel, obj=None):
+    def forward(self, sub, rel,relp=None, obj=None):
 
-        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel, self.drop, self.drop)
+        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel,relp, self.drop, self.drop)
         # [batch_size,embed_dim]
         obj_emb = sub_emb * rel_emb
 

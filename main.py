@@ -56,19 +56,20 @@ def get_candidate_voter_list(model, device, data, submit_path, top_k):
         test_iter = iter(data.data_iter['test'])
         for step, (triples, trp_ids) in tqdm(enumerate(test_iter)):
             triples = triples.to(device)
-            sub, rel, obj = (
+            sub, rel,relp, obj = (
                 triples[:, 0],
                 triples[:, 1],
                 triples[:, 2],
+                triples[:, 3]
             )
-            preds = model(sub, rel) # (batch_size, num_ent)
+            preds = model(sub, rel,relp) # (batch_size, num_ent)
 
             triples = triples.cpu().tolist()
             preds = preds.cpu().tolist()
             ids = trp_ids.cpu().tolist()
 
             for (triple, pred, triple_id) in zip(triples, preds, ids):
-                s, r, _ = triple
+                s, r, _,_ = triple
                 train_set = data.sr2o['train'][(s, r)]
                 train_set.update(data.sr2o['valid'][(s, r)])
                 train_list = np.array(list(train_set), dtype=np.int64)
@@ -94,17 +95,18 @@ def evaluate(model, device, data, top_k=5):
         test_iter = iter(data.data_iter['valid'])
         for step, (triples, trp_ids) in enumerate(test_iter):
             triples = triples.to(device)
-            sub, rel, obj = (
+            sub, rel, relp,obj = (
                 triples[:, 0],
                 triples[:, 1],
                 triples[:, 2],
+                triples[:, 3],
             )
             preds = model(sub, rel) # (batch_size, num_ent)
             all_triples += triples.cpu().tolist()
             all_preds += preds.cpu().tolist()
 
     for triple, pred in zip(all_triples, all_preds):
-        s, r, _ = triple
+        s, r, _,_ = triple
         # valid集的 object节点集合
         gt_set = data.sr2o['valid'][(s, r)]
         # train集中的object节点集合
@@ -172,17 +174,18 @@ def main(args):
         t0 = time()
         for step, batch in enumerate(data_iter['train']):
             triple, label = batch[0].to(device), batch[1].to(device)
-            sub, rel, obj, label = (
+            sub, rel,relp, obj, label = (
                 triple[:, 0],
                 triple[:, 1],
                 triple[:, 2],
+                triple[:, 3],
                 label.squeeze(),
             )
             if args.lb_smooth!=0:
                 # label = ((1-args.lb_smooth)*label) + (1/label.size(0))
                 label = (1.0-args.lb_smooth)*label + (args.lb_smooth/2)
             with autocast():
-                logits = model(sub, rel, obj)
+                logits = model(sub, rel,relp, obj)
                 tr_loss = loss_fn(logits, label)
             train_loss.append(tr_loss.item())
             scaler.scale(tr_loss).backward()
