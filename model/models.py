@@ -138,7 +138,7 @@ class RGAT_LINK(RGATBase):
 
 
 class RHGATBase(BaseModel):
-    def __init__(self, edge_index, edge_type, edge_type_p,ent_feature,num_rel, params=None):
+    def __init__(self, edge_index, edge_type, edge_type_p, ent_feature, num_rel, params=None):
         super(RHGATBase, self).__init__(params)
 
         self.edge_index = edge_index
@@ -150,30 +150,38 @@ class RHGATBase(BaseModel):
         # id embedding
         self.device = self.edge_index.device
         self.add_parent_rel = self.p.add_parent_rel
-
+        #
         self.id_embed = get_param((self.p.num_ent, self.p.init_dim))
-        self.gender_embed = nn.Embedding(3, self.p.init_dim)
-        self.age_embed = nn.Embedding(9, self.p.init_dim)
-        self.level_embed = nn.Embedding(11, self.p.init_dim)
+
+        self.gender_embed = nn.Embedding(3, self.p.user_fe_dim)
+        self.age_embed = nn.Embedding(9, self.p.user_fe_dim)
+        self.level_embed = nn.Embedding(11, self.p.user_fe_dim)
+
+        if self.p.feature_method == 'concat':
+            self.ent_dim = self.p.init_dim + 3 * self.p.user_fe_dim
+        else:
+            self.ent_dim = self.p.init_dim
 
         if self.p.feature_method == 'concat':
             if self.add_parent_rel:
-                self.p.init_dim = self.p.init_dim * 2
+                # self.rel_dim =self.ent_dim//2
+                self.rel_dim = self.ent_dim
             else:
-                self.p.init_dim = self.p.init_dim * 4
+                self.rel_dim = self.ent_dim
+        else:
+            self.rel_dim = self.ent_dim
 
         if self.add_parent_rel:
-            self.init_rel_p = get_param((2 * self.p.num_rel_p, self.p.init_dim))
+            self.init_rel_p = get_param((2 * self.p.num_rel_p, self.rel_dim))
 
-        self.init_rel = get_param((num_rel * 2, self.p.init_dim))
-        in_channel = self.p.init_dim*2 if self.add_parent_rel else self.p.init_dim
-        self.conv1 = RGHATConv(in_channel, self.p.gcn_dim, heads=self.p.heads, num_rels=num_rel, params=params)
+        self.init_rel = get_param((num_rel * 2, self.rel_dim))
+        self.conv1 = RGHATConv(self.ent_dim, self.p.gcn_dim, heads=self.p.heads, num_rels=num_rel, params=params)
         self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim, self.p.heads, num_rel,
                                params=params) if self.p.gcn_layer == 2 else None
 
-    def forward_base(self, sub, rel,relp, drop1, drop2):
+    def forward_base(self, sub, rel, relp, drop1, drop2):
         if self.add_parent_rel:
-            r = (self.init_rel,self.init_rel_p)
+            r = (self.init_rel, self.init_rel_p)
         else:
             r = self.init_rel
         # x [N_ent,k,output_channel//k]
@@ -188,18 +196,22 @@ class RHGATBase(BaseModel):
         elif self.p.feature_method == 'mean':
             self.init_embed = (self.id_embed + self.x1 + self.x2 + self.x3) / 4
             self.init_embed = self.init_embed.to(self.device)
+        else:
+            self.init_embed = self.id_embed.to(self.device)
 
-        x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type,self.edge_type_p, rel_emb=r)
+        x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, self.edge_type_p, rel_emb=r)
         x = drop1(x)
-        x, r = self.conv2(x, self.edge_index, self.edge_type,self.edge_type_p,rel_emb=r) if self.p.gcn_layer == 2 else (x, r)
+        x, r = self.conv2(x, self.edge_index, self.edge_type, self.edge_type_p,
+                          rel_emb=r) if self.p.gcn_layer == 2 else (x, r)
         x = drop2(x) if self.p.gcn_layer == 2 else x
         # [batch_ent,k,output_channel//k]
         sub_emb = torch.index_select(x, 0, sub)
         # [batch_ent,output_channel]
-        if isinstance(r,tuple):
+        if isinstance(r, tuple):
             r1 = torch.index_select(r[0], 0, rel)
-            r2 = torch.index_select(r[1],0,relp)
-            r = torch.concat([r1,r2],dim=1)
+            r2 = torch.index_select(r[1], 0, relp)
+            # r = torch.concat([r1,r2],dim=1)
+            r = r1 + r2
         # rel_emb = torch.index_select(r, 0, rel)
         return sub_emb, r, x
 
@@ -259,13 +271,13 @@ class RHGAT_ConvE(RHGATBase):
 
 
 class RHGAT_DistMult(RHGATBase):
-    def __init__(self, edge_index, edge_type, edge_type_p,ent_feature, params=None):
-        super(self.__class__, self).__init__(edge_index, edge_type,edge_type_p, ent_feature, params.num_rel, params)
+    def __init__(self, edge_index, edge_type, edge_type_p, ent_feature, params=None):
+        super(self.__class__, self).__init__(edge_index, edge_type, edge_type_p, ent_feature, params.num_rel, params)
         self.drop = torch.nn.Dropout(self.p.hid_drop)
 
-    def forward(self, sub, rel,relp=None, obj=None):
+    def forward(self, sub, rel, relp=None, obj=None):
 
-        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel,relp, self.drop, self.drop)
+        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel, relp, self.drop, self.drop)
         # [batch_size,embed_dim]
         obj_emb = sub_emb * rel_emb
 

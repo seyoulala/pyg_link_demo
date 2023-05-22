@@ -40,10 +40,11 @@ class RGHATConv(MessagePassing):
         self.ent_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
         # k rel weight aspect weight
         if self.add_parent_rel:
-            self.rel_wk = nn.Linear(self.in_channel//2,self.heads*self.out_channel//2,bias=False)
+            # self.rel_wk = nn.Linear(self.in_channel//2,self.heads*self.out_channel//2,bias=False)
+            self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
+
         else:
             self.rel_wk = nn.Linear(self.in_channel,self.heads*self.out_channel,bias=False)
-        self.attn_w = nn.Parameter(th.Tensor(1,self.heads,self.out_channel))
 
         self.w1 = nn.Parameter(th.Tensor(self.out_channel*2,self.out_channel))
         self.w2 = nn.Parameter(th.Tensor(self.out_channel*2,self.out_channel))
@@ -65,7 +66,6 @@ class RGHATConv(MessagePassing):
     def reset_parameters(self):
         glorot(self.ent_wk)
         glorot(self.rel_wk)
-        glorot(self.attn_w)
         glorot(self.w1)
         glorot(self.w2)
         glorot(self.w3)
@@ -78,8 +78,10 @@ class RGHATConv(MessagePassing):
     def forward(self,x,edge_index,edge_type,edge_type_p=None,rel_emb=None,size=None):
         x = self.ent_wk(x).view(-1,self.heads,self.out_channel)
         if edge_type_p is not None:
-            r1 = self.rel_wk(rel_emb[0]).view(-1,self.heads,self.out_channel//2)
-            r2 = self.rel_wk(rel_emb[1]).view(-1,self.heads,self.out_channel//2)
+            # r1 = self.rel_wk(rel_emb[0]).view(-1,self.heads,self.out_channel//2)
+            # r2 = self.rel_wk(rel_emb[1]).view(-1,self.heads,self.out_channel//2)
+            r1 = self.rel_wk(rel_emb[0]).view(-1,self.heads,self.out_channel)
+            r2 = self.rel_wk(rel_emb[1]).view(-1,self.heads,self.out_channel)
             rel_emb = (r1,r2)
         else:
             rel_emb = self.rel_wk(rel_emb).view(-1,self.heads,self.out_channel)
@@ -115,7 +117,8 @@ class RGHATConv(MessagePassing):
 
     def message(self,x_j,x_i,edge_index_i,edge_type,edge_type_p,rel_emb) -> Tensor:
         if isinstance(rel_emb,tuple):
-            r = torch.concat([th.index_select(rel_emb[0],0,edge_type),th.index_select(rel_emb[1],0,edge_type_p)],dim=-1)
+            # r = torch.concat([th.index_select(rel_emb[0],0,edge_type),th.index_select(rel_emb[1],0,edge_type_p)],dim=-1)
+            r = th.index_select(rel_emb[0],0,edge_type) + th.index_select(rel_emb[1],0,edge_type_p)
         else:
             r = th.index_select(rel_emb,0,edge_type)
         # [n_edge,heads,output_channel]
