@@ -181,9 +181,10 @@ class Data(object):
             inver_dst.append(sub_id)
             inver_rels.append(rel_id + self.num_rel)
 
-        K = 200
+        ratio = 0.3
         few_shot_valid_cnt = ddict(int)
         df = pd.read_json("{}/target_event_preliminary_train_info.json".format(self.data_dir))
+        rel_cnt_dict = df['event_id'].value_counts().to_dict()
         records = df.to_dict('records')
         random.shuffle(records)
         for line in records:
@@ -196,7 +197,7 @@ class Data(object):
                 self.ent2id[obj],
             )
             # 目标场景的相关的三元组，每种关系都保留200条样本作为验证集，其余加入到训练集中进行训练
-            if few_shot_valid_cnt[rel] < K:
+            if few_shot_valid_cnt[rel]/rel_cnt_dict[rel] < ratio:
                 self.sr2o['valid'][(sub_id, rel_id, relp_id)].add(obj_id)
                 self.data['valid'].append([sub_id, rel_id, relp_id, obj_id])
                 few_shot_valid_cnt[rel] += 1
