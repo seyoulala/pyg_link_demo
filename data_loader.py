@@ -35,7 +35,7 @@ class TrainDataset(Dataset):
         labels = [torch.FloatTensor([1.0])]
         while True:
             neg_obj = random.randint(0, self.num_ent - 1)
-            if neg_obj not in self.sr2o[(src, rel)]:
+            if neg_obj not in self.sr2o[(src, rel,relp)]:
                 triples.append(torch.LongTensor([src, rel, relp, neg_obj]))
                 labels.append(torch.FloatTensor([0.0]))
             if len(triples) > self.num_neg:
