@@ -98,20 +98,20 @@ def evaluate(model, device, data, top_k=5):
                 triples[:, 3],
             )
             preds = model(sub, rel, relp)  # (batch_size, num_ent)
-            all_triples += triples.cpu().tolist()
-            all_preds += preds.cpu().tolist()
+            all_triples = triples.cpu().tolist()
+            all_preds = preds.cpu().tolist()
 
-    for triple, pred in zip(all_triples, all_preds):
-        s, r, r1, _ = triple
-        # valid集的 object节点集合
-        gt_set = data.sr2o['valid'][(s, r, r1)]
-        # train集中的object节点集合
-        train_set = data.sr2o['train'][(s, r, r1)]
-        train_list = np.array(list(train_set), dtype=np.int64)
-        gt_list = np.array(list(gt_set), dtype=np.int64)
-        result = get_metrics(pred, gt_list, train_list, top_k)
-        for k, v in result.items():
-            results[k].append(v)
+            for triple, pred in zip(all_triples, all_preds):
+                s, r, r1, _ = triple
+                # valid集的 object节点集合
+                gt_set = data.sr2o['valid'][(s, r, r1)]
+                # train集中的object节点集合
+                train_set = data.sr2o['train'][(s, r, r1)]
+                train_list = np.array(list(train_set), dtype=np.int64)
+                gt_list = np.array(list(gt_set), dtype=np.int64)
+                result = get_metrics(pred, gt_list, train_list, top_k)
+                for k, v in result.items():
+                    results[k].append(v)
 
     results = {k: np.mean(v) for k, v in results.items()}
     return results
@@ -239,6 +239,8 @@ if __name__ == "__main__":
     parser.add_argument("--num_bases", dest="num_bases", default=-1, type=int,
                         help="Number of basis relation vectors to use", )
     parser.add_argument("--init_dim", dest="init_dim", default=50, type=int,
+                        help="Initial dimension size for entities and relations", )
+    parser.add_argument("--user_fe_dim", dest="user_fe_dim", default=50, type=int,
                         help="Initial dimension size for entities and relations", )
     parser.add_argument('--embed_dim', dest="embed_dim", default=200, type=int,
                         help="Embedding dimension to give as input to score function")

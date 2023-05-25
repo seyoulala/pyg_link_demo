@@ -227,7 +227,8 @@ class RHGAT_ConvE(RHGATBase):
 
         self.hidden_drop = torch.nn.Dropout(self.p.hid_drop)
         self.hidden_drop2 = torch.nn.Dropout(self.p.hid_drop2)
-        self.feature_drop = torch.nn.Dropout(self.p.feat_drop)
+        # self.feature_drop = torch.nn.Dropout(self.p.feat_drop)
+        self.feature_drop = torch.nn.Dropout2d(self.p.feat_drop)
         self.m_conv1 = torch.nn.Conv2d(1, out_channels=self.p.num_filt, kernel_size=(self.p.ker_sz, self.p.ker_sz),
                                        stride=1, padding=0, bias=self.p.bias)
 
@@ -247,7 +248,10 @@ class RHGAT_ConvE(RHGATBase):
 
     def forward(self, sub, rel,relp, obj=None):
         sub_emb, rel_emb, all_ent = self.forward_base(sub, rel,relp, self.hidden_drop, self.hidden_drop2)
-        stk_inp = self.concat(sub_emb, rel_emb)
+        # stk_inp = self.concat(sub_emb, rel_emb)
+        sub_emb = sub_emb.view(-1,1,self.p.embed_dim // self.p.k_w,self.p.k_w)
+        rel_emb = rel_emb.view(-1,1,self.p.embed_dim // self.p.k_w,self.p.k_w)
+        stk_inp = torch.cat([sub_emb,rel_emb],2)
         x = self.bn0(stk_inp)
         x = self.m_conv1(x)
         x = self.bn1(x)
