@@ -197,7 +197,8 @@ class RHGATBase(BaseModel):
             self.init_embed = (self.id_embed + self.x1 + self.x2 + self.x3) / 4
             self.init_embed = self.init_embed.to(self.device)
         else:
-            self.init_embed = self.id_embed.to(self.device)
+            self.init_embed = self.id_embed
+            self.init_embed = self.init_embed.to(self.device)
 
         x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, self.edge_type_p, rel_emb=r)
         x = drop1(x)
@@ -217,8 +218,8 @@ class RHGATBase(BaseModel):
 
 
 class RHGAT_ConvE(RHGATBase):
-    def __init__(self, edge_index, edge_type, ent_feature, params=None):
-        super(RHGAT_ConvE, self).__init__(edge_index, edge_type, ent_feature, params.num_rel, params)
+    def __init__(self, edge_index, edge_type,edge_type_p, ent_feature, params=None):
+        super(RHGAT_ConvE, self).__init__(edge_index, edge_type,edge_type_p, ent_feature, params.num_rel, params)
 
         self.bn0 = torch.nn.BatchNorm2d(1)
         self.bn1 = torch.nn.BatchNorm2d(self.p.num_filt)
@@ -244,8 +245,8 @@ class RHGAT_ConvE(RHGATBase):
         stack_inp = torch.transpose(stack_inp, 2, 1).reshape((-1, 1, 2 * self.p.embed_dim // self.p.k_w, self.p.k_w))
         return stack_inp
 
-    def forward(self, sub, rel, obj=None):
-        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel, self.hidden_drop, self.hidden_drop2)
+    def forward(self, sub, rel,relp, obj=None):
+        sub_emb, rel_emb, all_ent = self.forward_base(sub, rel,relp, self.hidden_drop, self.hidden_drop2)
         stk_inp = self.concat(sub_emb, rel_emb)
         x = self.bn0(stk_inp)
         x = self.m_conv1(x)

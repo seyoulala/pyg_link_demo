@@ -148,7 +148,7 @@ def main(args):
             model = RGAT_LINK(data.edge_index, data.edge_type, data.ent_feid, args)
     elif args.model_name == 'rhgat':
         if args.score_func == 'conve':
-            model = RHGAT_ConvE(data.edge_index, data.edge_type, data.ent_feid, args)
+            model = RHGAT_ConvE(data.edge_index, data.edge_type,data.edge_type_parent, data.ent_feid, args)
         elif args.score_func == 'dist':
             model = RHGAT_DistMult(data.edge_index, data.edge_type, data.edge_type_parent, data.ent_feid, args)
 

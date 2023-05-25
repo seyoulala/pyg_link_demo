@@ -275,6 +275,6 @@ class Data(object):
         # train/valid/test dataloaders
         self.data_iter = {
             "train": get_train_data_loader("train", self.batch_size),
-            "valid": get_test_data_loader("valid", 1024),
+            "valid": get_test_data_loader("valid", 800),
             "test": get_test_data_loader("test", 1024),
         }
