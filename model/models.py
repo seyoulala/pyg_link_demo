@@ -174,6 +174,7 @@ class RHGATBase(BaseModel):
         if self.add_parent_rel:
             self.init_rel_p = get_param((2 * self.p.num_rel_p, self.rel_dim))
 
+        self.lin_r = nn.Linear(self.rel_dim,self.rel_dim)
         self.init_rel = get_param((num_rel * 2, self.rel_dim))
         self.conv1 = RGHATConv(self.ent_dim, self.p.gcn_dim, heads=self.p.heads, num_rels=num_rel, params=params)
         self.conv2 = RGHATConv(self.p.gcn_dim, self.p.embed_dim, self.p.heads, num_rel,
@@ -213,6 +214,7 @@ class RHGATBase(BaseModel):
             r2 = torch.index_select(r[1], 0, relp)
             # r = torch.concat([r1,r2],dim=1)
             r = r1 + r2
+            r = self.lin_r(r)
         # rel_emb = torch.index_select(r, 0, rel)
         return sub_emb, r, x
 
