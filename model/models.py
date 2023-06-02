@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn.inits import glorot
 from torch_geometric.nn import JumpingKnowledge
+from torch_geometric.utils import  dropout_edge
 
 from helper import *
 from model.compgcn_conv import CompGCNConv
@@ -201,6 +202,10 @@ class RHGATBase(BaseModel):
             self.init_embed = self.id_embed
             self.init_embed = self.init_embed.to(self.device)
 
+        self.edge_index,edge_mask = dropout_edge(self.edge_index,p=0.3,training=self.training)
+        self.edge_type = self.edge_type[edge_mask]
+        self.edge_type = torch.masked_select(self.edge_type,edge_mask)
+        self.edge_type_p = torch.masked_select(self.edge_type_p,edge_mask)
         x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, self.edge_type_p, rel_emb=r)
         x = drop1(x)
         x, r = self.conv2(x, self.edge_index, self.edge_type, self.edge_type_p,
