@@ -202,10 +202,6 @@ class RHGATBase(BaseModel):
             self.init_embed = self.id_embed
             self.init_embed = self.init_embed.to(self.device)
 
-        self.edge_index,edge_mask = dropout_edge(self.edge_index,p=0.3,training=self.training)
-        self.edge_type = self.edge_type[edge_mask]
-        self.edge_type = torch.masked_select(self.edge_type,edge_mask)
-        self.edge_type_p = torch.masked_select(self.edge_type_p,edge_mask)
         x, r = self.conv1(self.init_embed, self.edge_index, self.edge_type, self.edge_type_p, rel_emb=r)
         x = drop1(x)
         x, r = self.conv2(x, self.edge_index, self.edge_type, self.edge_type_p,
@@ -262,13 +258,13 @@ class RHGAT_ConvE(RHGATBase):
         x = self.bn0(stk_inp)
         x = self.m_conv1(x)
         x = self.bn1(x)
-        x = F.relu(x)
+        x = F.elu(x)
         x = self.feature_drop(x)
         x = x.view(-1, self.flat_sz)
         x = self.fc(x)
         x = self.hidden_drop2(x)
         x = self.bn2(x)
-        x = F.relu(x)
+        x = F.elu(x)
         #
         # x = F.adaptive_avg_pool2d(x,(1,1))
         if obj is None:
